@@ -25,6 +25,7 @@ export const BoardCalibration: React.FC<BoardCalibrationProps> = ({ imageData, i
   });
   
   const [dragging, setDragging] = useState<keyof typeof corners | null>(null);
+  const [isRectangular, setIsRectangular] = useState(true);
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     setImgSize({ width: e.currentTarget.width, height: e.currentTarget.height });
@@ -41,7 +42,32 @@ export const BoardCalibration: React.FC<BoardCalibrationProps> = ({ imageData, i
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
     
-    setCorners(prev => ({ ...prev, [dragging]: { x, y } }));
+    if (isRectangular) {
+        setCorners(prev => {
+            const newCorners = { ...prev };
+            // Update the dragged corner
+            newCorners[dragging] = { x, y };
+            
+            // Update neighbors to maintain rectangle
+            // tl: top-left, tr: top-right, bl: bottom-left, br: bottom-right
+            if (dragging === 'tl') {
+                newCorners.bl.x = x; // Align left
+                newCorners.tr.y = y; // Align top
+            } else if (dragging === 'tr') {
+                newCorners.br.x = x; // Align right
+                newCorners.tl.y = y; // Align top
+            } else if (dragging === 'bl') {
+                newCorners.tl.x = x; // Align left
+                newCorners.br.y = y; // Align bottom
+            } else if (dragging === 'br') {
+                newCorners.tr.x = x; // Align right
+                newCorners.bl.y = y; // Align bottom
+            }
+            return newCorners;
+        });
+    } else {
+        setCorners(prev => ({ ...prev, [dragging]: { x, y } }));
+    }
   };
 
   const handleMouseUp = () => {
@@ -111,7 +137,22 @@ export const BoardCalibration: React.FC<BoardCalibrationProps> = ({ imageData, i
     >
       <div className="bg-white p-4 rounded w-full max-w-4xl flex flex-col gap-4">
         <h2 className="text-xl font-bold">Align Board Grid</h2>
-        <p className="text-sm text-gray-500">Drag the 4 red corners to match the outer corners of the Xiangqi board.</p>
+        <div className="flex justify-between items-center">
+             <p className="text-sm text-gray-500">Drag the 4 red corners to match the outer corners of the Xiangqi board.</p>
+             <label className="flex items-center gap-2 text-sm select-none cursor-pointer">
+                <input 
+                    type="checkbox" 
+                    checked={isRectangular} 
+                    onChange={e => {
+                        setIsRectangular(e.target.checked);
+                        // Optional: Force rectangle when enabling?
+                        // For now, let user drag to fix.
+                    }}
+                    className="w-4 h-4"
+                />
+                <span className="font-bold text-stone-700">保持矩形 (Lock Rectangle)</span>
+             </label>
+        </div>
         
         <div 
           ref={containerRef}
