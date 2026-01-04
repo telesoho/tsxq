@@ -64,12 +64,22 @@ function createWindow(): void {
   });
 
   ipcMain.handle('screen:getSources', async () => {
-    const sources = await desktopCapturer.getSources({ types: ['window', 'screen'], thumbnailSize: { width: 300, height: 200 } });
-    return sources.map(s => ({
-      id: s.id,
-      name: s.name,
-      thumbnail: s.thumbnail.toDataURL()
-    }));
+    try {
+      const sources = await desktopCapturer.getSources({ 
+        types: ['window', 'screen'], 
+        thumbnailSize: { width: 300, height: 200 },
+        fetchWindowIcons: true
+      });
+      console.log(`[screen:getSources] Found ${sources.length} sources`);
+      return sources.map(s => ({
+        id: s.id,
+        name: s.name,
+        thumbnail: s.thumbnail.toDataURL()
+      }));
+    } catch (error) {
+      console.error('[screen:getSources] Error:', error);
+      return [];
+    }
   });
 
   // HMR for renderer base on electron-vite cli.

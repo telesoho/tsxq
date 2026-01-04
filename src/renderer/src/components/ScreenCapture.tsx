@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 
 interface ScreenCaptureProps {
-  onCapture: (imageData: string) => void;
+  onCapture: (imageData: string, sourceId: string) => void;
   onCancel: () => void;
 }
 
@@ -11,40 +11,50 @@ export const ScreenCapture: React.FC<ScreenCaptureProps> = ({ onCapture, onCance
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isSelecting, setIsSelecting] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
-  useEffect(() => {
-    // Get available screen sources from main process
-    window.api.getScreenSources().then((sources: any[]) => {
+  const fetchSources = () => {
+    setSources([]); // Clear old sources
+    (window as any).api.getScreenSources().then((sources: any[]) => {
       setSources(sources);
       if (sources.length > 0) {
         setSelectedSourceId(sources[0].id);
       }
-    });
+    }).catch((err: unknown) => console.error("Failed to get sources:", err));
+  };
+
+  useEffect(() => {
+    fetchSources();
   }, []);
+
+  useEffect(() => {
+    if (stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+    }
+  }, [stream, isSelecting]);
 
   const startStream = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const newStream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
           mandatory: {
             chromeMediaSource: 'desktop',
             chromeMediaSourceId: selectedSourceId,
-            minWidth: 1280,
+            minWidth: 0,
             maxWidth: 4000,
-            minHeight: 720,
+            minHeight: 0,
             maxHeight: 4000
           }
         } as any
       });
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setIsSelecting(true);
-      }
+      
+      setStream(newStream);
+      setIsSelecting(true);
     } catch (e) {
       console.error('Error accessing screen:', e);
+      alert('Failed to capture screen. Please try selecting a different source or check permissions.\nError: ' + e);
     }
   };
 
@@ -58,7 +68,7 @@ export const ScreenCapture: React.FC<ScreenCaptureProps> = ({ onCapture, onCance
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/png');
-        onCapture(dataUrl);
+        onCapture(dataUrl, selectedSourceId);
         
         // Stop all tracks
         const stream = video.srcObject as MediaStream;
@@ -86,9 +96,14 @@ export const ScreenCapture: React.FC<ScreenCaptureProps> = ({ onCapture, onCance
                  </div>
                ))}
              </div>
-             <div className="flex justify-end gap-2 mt-4">
-               <button onClick={onCancel} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-               <button onClick={startStream} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Next</button>
+             <div className="flex justify-between mt-4">
+               <button onClick={fetchSources} className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded flex items-center gap-2">
+                  <span>↻</span> Refresh Sources
+               </button>
+               <div className="flex gap-2">
+                 <button onClick={onCancel} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+                 <button onClick={startStream} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Next</button>
+               </div>
              </div>
           </div>
         ) : (
