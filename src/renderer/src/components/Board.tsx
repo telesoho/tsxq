@@ -6,6 +6,14 @@ interface BoardProps {
   onSquareClick: (row: number, col: number) => void;
   selectedSquare: { row: number, col: number } | null;
   lastMove: { from: { row: number, col: number }, to: { row: number, col: number } } | null;
+  isFlipped?: boolean;
+  bestMoves?: Array<{
+      from: { row: number, col: number };
+      to: { row: number, col: number };
+      score: string;
+      rank: number;
+      chineseNotation?: string;
+  }>;
 }
 
 const CELL_SIZE = 60;
@@ -13,7 +21,7 @@ const BOARD_WIDTH = CELL_SIZE * 8;
 const BOARD_HEIGHT = CELL_SIZE * 9;
 const PADDING = 40;
 
-export const Board: React.FC<BoardProps> = ({ board, onSquareClick, selectedSquare, lastMove }) => {
+export const Board: React.FC<BoardProps> = ({ board, onSquareClick, selectedSquare, lastMove, isFlipped = false, bestMoves = [] }) => {
   // Draw the grid
   const renderGrid = () => {
     return (
@@ -43,27 +51,124 @@ export const Board: React.FC<BoardProps> = ({ board, onSquareClick, selectedSqua
           <line x1={5 * CELL_SIZE} y1={7 * CELL_SIZE} x2={3 * CELL_SIZE} y2={9 * CELL_SIZE} stroke="#000" strokeWidth={1} />
           
           {/* River Text */}
-          <text x={2 * CELL_SIZE} y={4.5 * CELL_SIZE} dy="0.3em" fontSize="24" textAnchor="middle" style={{writingMode: 'vertical-rl'}}>楚河</text>
-          <text x={6 * CELL_SIZE} y={4.5 * CELL_SIZE} dy="0.3em" fontSize="24" textAnchor="middle" style={{writingMode: 'vertical-rl'}}>汉界</text>
+          {isFlipped ? (
+             <>
+               <text x={2 * CELL_SIZE} y={4.5 * CELL_SIZE} dy="0.3em" fontSize="24" textAnchor="middle" style={{writingMode: 'vertical-rl'}}>汉界</text>
+               <text x={6 * CELL_SIZE} y={4.5 * CELL_SIZE} dy="0.3em" fontSize="24" textAnchor="middle" style={{writingMode: 'vertical-rl'}}>楚河</text>
+             </>
+          ) : (
+             <>
+               <text x={2 * CELL_SIZE} y={4.5 * CELL_SIZE} dy="0.3em" fontSize="24" textAnchor="middle" style={{writingMode: 'vertical-rl'}}>楚河</text>
+               <text x={6 * CELL_SIZE} y={4.5 * CELL_SIZE} dy="0.3em" fontSize="24" textAnchor="middle" style={{writingMode: 'vertical-rl'}}>汉界</text>
+             </>
+          )}
 
           {/* Coordinates */}
-          {/* Top (Black): 1 2 3 4 5 6 7 8 9 (Left to Right) */}
-          {Array.from({ length: 9 }).map((_, i) => (
-            <text key={`num-top-${i}`} x={i * CELL_SIZE} y={-10} textAnchor="middle" fontSize="14" fill="#333">{i + 1}</text>
-          ))}
-          
-          {/* Bottom (Red): 九 八 ... 一 (Left to Right) */}
-          {['九', '八', '七', '六', '五', '四', '三', '二', '一'].map((char, i) => (
-             <text key={`num-bot-${i}`} x={i * CELL_SIZE} y={BOARD_HEIGHT + 20} textAnchor="middle" fontSize="14" fill="#333">{char}</text>
-          ))}
+          {isFlipped ? (
+             <>
+               {/* Top (Red): 一 二 ... 九 (Left to Right) */}
+               {['一', '二', '三', '四', '五', '六', '七', '八', '九'].map((char, i) => (
+                  <text key={`num-top-${i}`} x={i * CELL_SIZE} y={-10} textAnchor="middle" fontSize="14" fill="#333">{char}</text>
+               ))}
+               {/* Bottom (Black): 9 8 ... 1 (Left to Right) */}
+               {['9', '8', '7', '6', '5', '4', '3', '2', '1'].map((char, i) => (
+                  <text key={`num-bot-${i}`} x={i * CELL_SIZE} y={BOARD_HEIGHT + 20} textAnchor="middle" fontSize="14" fill="#333">{char}</text>
+               ))}
+             </>
+          ) : (
+             <>
+               {/* Top (Black): 1 2 3 4 5 6 7 8 9 (Left to Right) */}
+               {Array.from({ length: 9 }).map((_, i) => (
+                 <text key={`num-top-${i}`} x={i * CELL_SIZE} y={-10} textAnchor="middle" fontSize="14" fill="#333">{i + 1}</text>
+               ))}
+               
+               {/* Bottom (Red): 九 八 ... 一 (Left to Right) */}
+               {['九', '八', '七', '六', '五', '四', '三', '二', '一'].map((char, i) => (
+                  <text key={`num-bot-${i}`} x={i * CELL_SIZE} y={BOARD_HEIGHT + 20} textAnchor="middle" fontSize="14" fill="#333">{char}</text>
+               ))}
+             </>
+          )}
         </g>
       </svg>
+    );
+  };
+
+  const renderArrows = () => {
+    if (!bestMoves || bestMoves.length === 0) return null;
+
+    return (
+        <svg width={BOARD_WIDTH + PADDING * 2} height={BOARD_HEIGHT + PADDING * 2} className="absolute top-0 left-0 z-20 pointer-events-none">
+            <defs>
+                <marker id="arrowhead-1" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#dc2626" />
+                </marker>
+                <marker id="arrowhead-2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#d97706" />
+                </marker>
+                <marker id="arrowhead-3" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
+                </marker>
+            </defs>
+            <g transform={`translate(${PADDING}, ${PADDING})`}>
+                {bestMoves.map((move, i) => {
+                    const fromR = isFlipped ? 9 - move.from.row : move.from.row;
+                    const fromC = isFlipped ? 8 - move.from.col : move.from.col;
+                    const toR = isFlipped ? 9 - move.to.row : move.to.row;
+                    const toC = isFlipped ? 8 - move.to.col : move.to.col;
+
+                    const x1 = fromC * CELL_SIZE;
+                    const y1 = fromR * CELL_SIZE;
+                    const x2 = toC * CELL_SIZE;
+                    const y2 = toR * CELL_SIZE;
+
+                    const colors = ['#dc2626', '#d97706', '#2563eb']; // Red, Amber, Blue
+                    const color = colors[i % colors.length];
+                    const marker = `url(#arrowhead-${(i % 3) + 1})`;
+                    const opacity = 0.8 - (i * 0.2);
+                    
+                    return (
+                        <g key={`arrow-${i}`}>
+                            <line 
+                                x1={x1} y1={y1} x2={x2} y2={y2} 
+                                stroke={color} 
+                                strokeWidth={4 - i} 
+                                strokeOpacity={opacity}
+                                markerEnd={marker}
+                            />
+                            {/* Score Label */}
+                            <rect 
+                                x={(x1 + x2) / 2 - 20} 
+                                y={(y1 + y2) / 2 - 10} 
+                                width="40" 
+                                height="20" 
+                                rx="4"
+                                fill="white"
+                                stroke={color}
+                                strokeWidth="1"
+                            />
+                            <text
+                                x={(x1 + x2) / 2} 
+                                y={(y1 + y2) / 2}
+                                dy="0.3em"
+                                fontSize="10"
+                                textAnchor="middle"
+                                fill={color}
+                                fontWeight="bold"
+                            >
+                                {move.chineseNotation || move.score}
+                            </text>
+                        </g>
+                    );
+                })}
+            </g>
+        </svg>
     );
   };
 
   return (
     <div className="relative select-none bg-amber-100 rounded-lg shadow-xl" style={{ width: BOARD_WIDTH + PADDING * 2, height: BOARD_HEIGHT + PADDING * 2 }}>
       {renderGrid()}
+      {renderArrows()}
       <div className="absolute top-0 left-0 w-full h-full" style={{ padding: PADDING }}>
         {board.map((row, r) => (
           row.map((piece, c) => {
@@ -71,6 +176,10 @@ export const Board: React.FC<BoardProps> = ({ board, onSquareClick, selectedSqua
             const isLastMoveFrom = lastMove?.from.row === r && lastMove?.from.col === c;
             const isLastMoveTo = lastMove?.to.row === r && lastMove?.to.col === c;
             
+            // Calculate visual position
+            const visualR = isFlipped ? 9 - r : r;
+            const visualC = isFlipped ? 8 - c : c;
+
             return (
               <div
                 key={`${r}-${c}`}
@@ -82,8 +191,8 @@ export const Board: React.FC<BoardProps> = ({ board, onSquareClick, selectedSqua
                 style={{
                   width: CELL_SIZE - 6,
                   height: CELL_SIZE - 6,
-                  left: c * CELL_SIZE + PADDING - (CELL_SIZE - 6)/2,
-                  top: r * CELL_SIZE + PADDING - (CELL_SIZE - 6)/2,
+                  left: visualC * CELL_SIZE + PADDING - (CELL_SIZE - 6)/2,
+                  top: visualR * CELL_SIZE + PADDING - (CELL_SIZE - 6)/2,
                   transform: `translate(3px, 3px)` // Center adjustment
                 }}
               >

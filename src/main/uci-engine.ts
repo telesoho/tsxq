@@ -98,6 +98,7 @@ export class UCIEngine extends EventEmitter {
       const value = parts[i + 1];
       
       if (key === 'depth') info.depth = parseInt(value);
+      if (key === 'multipv') info.multipv = parseInt(value);
       if (key === 'score') {
         info.scoreType = value; // cp or mate
         info.scoreValue = parseInt(parts[i + 2]);

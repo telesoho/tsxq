@@ -138,41 +138,57 @@ export function getChineseMoveNotation(board: BoardState, move: { from: { row: n
 
   if (otherPiecesInCol.length > 0) {
     // Ambiguity exists
-    const otherRow = otherPiecesInCol[0]; // Simplified for 2 pieces
-    // If more than 1 other piece (e.g. 3 pawns), this logic needs expansion.
-    // For now handle standard 2-piece ambiguity (Twin Rooks, Cannons, Knights, Pawns)
+    // For multiple pieces (e.g., pawns), we need to sort them by row
+    const allPiecesInCol = [...otherPiecesInCol, fromRow].sort((a, b) => a - b);
     
-    // Red: Smaller row index is TOP (Far), Larger is BOTTOM (Near)
-    // But Board row 0 is Top (Black side), Row 9 is Bottom (Red side).
-    // So smaller row index is "Far" from Red, "Near" to Black?
-    // Wait.
-    // Visual:
-    // 0: Black King
-    // ...
-    // 9: Red King
+    // Red attacks UP (0), so smaller row is Front
+    // Black attacks DOWN (9), so larger row is Front
     
-    // For Red: Row 0 is "Front" (Remote), Row 9 is "Back" (Close). 
-    // Wait, "Front" usually means "Advanced". 
-    // "前" (Front) is the one closer to the opponent? Or the one visually in front?
-    // In Xiangqi "Front" means the one further ahead in attacking direction.
-    // Red attacks UP (0). So smaller Row index is "Front".
-    // Black attacks DOWN (9). So larger Row index is "Front".
-    
-    const isFront = isRedTurn ? fromRow < otherRow : fromRow > otherRow;
-    
-    // If multiple pieces, "Front/Back" might not be enough (e.g. 3 pawns: Front, Middle, Rear).
-    // Assuming max 2 for non-pawns usually.
-    if (otherPiecesInCol.length === 1) {
+    if (allPiecesInCol.length === 2) {
+        // Standard 2-piece ambiguity
+        const otherRow = otherPiecesInCol[0];
+        const isFront = isRedTurn ? fromRow < otherRow : fromRow > otherRow;
         prefix = isFront ? '前' : '后';
-        fileChar = pieceName; // Replace number with piece name? No, notation is "前炮平五"
+        // Format: "前/后" + "Piece" + "Dir" + "Dest"
+        // So we don't use fileChar (SrcCol) here.
+    } else if (allPiecesInCol.length === 3) {
+        // 3 pieces (Pawns)
+        // Red: 0(Front), 1(Mid), 2(Rear)
+        // Black: 9(Front), 8(Mid), 7(Rear)
+        
+        let index = allPiecesInCol.indexOf(fromRow);
+        // If Black, reverse index to match Front/Mid/Rear logic?
+        // No, let's just define explicitly.
+        
+        if (isRedTurn) {
+            // Smaller row is Front. Index 0 is Front.
+            if (index === 0) prefix = '前';
+            else if (index === 1) prefix = '中';
+            else prefix = '后';
+        } else {
+            // Larger row is Front. Index len-1 is Front.
+            if (index === 2) prefix = '前';
+            else if (index === 1) prefix = '中';
+            else prefix = '后';
+        }
     } else {
-        // 3+ pieces (Pawns). Complex. Fallback to normal notation for now or simple Front/Back of extremes.
-        // Let's stick to standard 2-piece logic for safety.
-         prefix = isFront ? '前' : '后';
-         fileChar = pieceName;
+        // 4+ pieces... rare. Just use row number fallback or simplified.
+        // For simplicity, treat as Front/Back of the group?
+        // Let's stick to simple Front/Back relative to the nearest neighbor if needed, but '中' covers 3.
+        // If 4, "前二", "前三"? Too complex for this snippet.
+        // Fallback: Use standard notation with column, ignoring ambiguity prefix if too complex?
+        // Or just "前" for top half, "后" for bottom half?
+        // Let's just use column notation if > 3.
+        if (allPiecesInCol.length > 3) {
+             // Fallback to standard "Piece + Col + Dir + Dest"
+             // But we need to distinguish.
+             // Actually, standard notation for 4/5 pawns is "前兵", "二兵", "三兵", "四兵", "后兵".
+             // We will implement simple 1-3 support.
+             prefix = ''; 
+        }
     }
   } else {
-    prefix = pieceName;
+    prefix = pieceName; // Start with Piece Name
   }
   
   // 4. Determine Direction (进, 退, 平)
@@ -218,14 +234,14 @@ export function getChineseMoveNotation(board: BoardState, move: { from: { row: n
   }
   
   // Final Assembly
-  // If prefix was used (Ambiguity), format is: "前/后" + "Piece" + "Dir" + "Dest"
+  // If prefix was used (Ambiguity), format is: "Prefix" + "Piece" + "Dir" + "Dest"
   // Wait. Standard is "前炮平五". 
   // If prefix is set to '前'/'后', we replaced 'fileChar' with 'PieceName' in the logic above?
   // Let's re-verify.
   // Normal: "炮" + "二" + "平" + "五" (Piece + SrcCol + Dir + Dest)
   // Ambiguous: "前" + "炮" + "平" + "五" (Pos + Piece + Dir + Dest)
   
-  if (prefix === '前' || prefix === '后') {
+  if (['前', '后', '中'].includes(prefix)) {
       return prefix + pieceName + dir + dest;
   } else {
       return pieceName + fileChar + dir + dest;
