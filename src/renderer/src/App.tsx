@@ -430,6 +430,23 @@ function App(): JSX.Element {
   return (
     <div className="flex h-screen bg-stone-200 p-8 gap-8 relative overflow-hidden">
       <div className="flex-1 flex justify-center items-center relative w-full">
+        {/* Floating Undo Button - Top Left */}
+        <button
+            onClick={handleUndo}
+            disabled={history.length === 0}
+            className={`absolute top-0 left-0 z-30 px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 transition-all ${
+                history.length === 0 
+                ? 'bg-stone-300 text-stone-500 cursor-not-allowed opacity-50' 
+                : 'bg-white text-stone-700 hover:bg-amber-50 hover:text-amber-600 border border-stone-200'
+            }`}
+            title="悔棋 (Undo)"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+            <span>悔棋</span>
+        </button>
+
         <Board 
           board={boardState.board} 
           onSquareClick={handleSquareClick} 
@@ -579,20 +596,9 @@ function App(): JSX.Element {
               setHistory([]);
               setLastMove(null);
             }}
-            className="flex-1 px-4 py-2 bg-stone-600 text-white rounded hover:bg-stone-700 font-bold shadow-sm"
+            className="w-full px-4 py-2 bg-stone-600 text-white rounded hover:bg-stone-700 font-bold shadow-sm"
           >
             重新开始
-          </button>
-          <button 
-            onClick={handleUndo}
-            disabled={history.length === 0}
-            className={`flex-1 px-4 py-2 rounded font-bold shadow-sm ${
-              history.length === 0 
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                : 'bg-amber-600 text-white hover:bg-amber-700'
-            }`}
-          >
-            悔棋
           </button>
         </div>
         
