@@ -1,15 +1,42 @@
 import { app, shell, BrowserWindow, ipcMain, desktopCapturer } from 'electron'
 import { join } from 'path'
+import { writeFileSync, readFileSync, existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { UCIEngine } from './uci-engine'
 
 let engine: UCIEngine | null = null;
 
+// Window state management
+const getStatePath = () => join(app.getPath('userData'), 'window-state.json');
+
+const loadState = () => {
+  try {
+    const path = getStatePath();
+    if (existsSync(path)) {
+      const data = JSON.parse(readFileSync(path, 'utf8'));
+      return data;
+    }
+  } catch (e) {
+    console.error('Failed to load window state:', e);
+  }
+  return { width: 1000, height: 720 }; // Default compact size for board + panel
+};
+
+const saveState = (bounds: { width: number; height: number }) => {
+  try {
+    writeFileSync(getStatePath(), JSON.stringify(bounds));
+  } catch (e) {
+    console.error('Failed to save window state:', e);
+  }
+};
+
 function createWindow(): void {
+  const state = loadState();
+  
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: state.width,
+    height: state.height,
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
@@ -18,6 +45,15 @@ function createWindow(): void {
       contextIsolation: true,
     }
   })
+
+  let resizeTimeout: NodeJS.Timeout;
+  mainWindow.on('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      const { width, height } = mainWindow.getBounds();
+      saveState({ width, height });
+    }, 500);
+  });
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()

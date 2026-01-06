@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef, SetStateAction } from 'react'
 import { Board } from './components/Board'
 import { ScreenCapture } from './components/ScreenCapture'
 import { parseFen, generateFen, START_FEN, BoardState, PieceColor, PieceType, fromUciMove, getChineseMoveNotation } from './lib/xiangqi'
-
 import { BoardCalibration } from './components/BoardCalibration'
 import { recognizeBoardWithCorners, learnPiece, getSquareImage, BoardCorners } from './lib/vision'
 import { captureSource } from './lib/capture'
@@ -447,6 +446,41 @@ function App(): JSX.Element {
             <span>悔棋</span>
         </button>
 
+        {/* Floating Restart Button - Top Right */}
+        <button
+            onClick={() => {
+              if (window.confirm('确定要重新开始对局吗？')) {
+                setFen(START_FEN);
+                setGameOver(null);
+                setIsCheckingRule(false);
+                setIsAiThinking(false);
+                setEngineInfo(null);
+                setMoveHistory([]);
+                setHistory([]);
+                setLastMove(null);
+              }
+            }}
+            className="absolute top-0 right-32 z-30 px-4 py-2 rounded-full font-bold shadow-lg bg-stone-600 text-white hover:bg-stone-700 border border-stone-700 flex items-center gap-2 transition-all"
+            title="重新开始 (Restart)"
+        >
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+             </svg>
+             <span>重开</span>
+        </button>
+
+        {/* Floating Flip Button - Top Right */}
+        <button
+            onClick={() => setIsFlipped(!isFlipped)}
+            className="absolute top-0 right-0 z-30 px-4 py-2 rounded-full font-bold shadow-lg bg-white text-stone-700 hover:bg-stone-50 hover:text-stone-900 border border-stone-200 flex items-center gap-2 transition-all"
+            title="翻转棋盘 (Flip Board)"
+        >
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+             </svg>
+             <span>翻转</span>
+        </button>
+
         <Board 
           board={boardState.board} 
           onSquareClick={handleSquareClick} 
@@ -478,17 +512,8 @@ function App(): JSX.Element {
         <div className="flex justify-between items-center min-w-[280px]">
             <h1 className="text-2xl font-bold text-stone-800">Xiangqi Assistant</h1>
             <div className="flex gap-2">
-                <button 
-                    onClick={() => setIsFlipped(!isFlipped)}
-                    className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-stone-600 transition-colors"
-                    title="翻转棋盘"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                </button>
-                <button 
-                    onClick={() => setIsPanelVisible(false)}
+                      <button 
+                          onClick={() => setIsPanelVisible(false)}
                     className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-stone-600 transition-colors"
                     title="隐藏面板"
                 >
@@ -584,23 +609,7 @@ function App(): JSX.Element {
 
         {/* Engine Info Removed */}
 
-        <div className="flex gap-2">
-          <button 
-            onClick={() => {
-              setFen(START_FEN);
-              setGameOver(null);
-              setIsCheckingRule(false);
-              setIsAiThinking(false);
-              setEngineInfo(null);
-              setMoveHistory([]);
-              setHistory([]);
-              setLastMove(null);
-            }}
-            className="w-full px-4 py-2 bg-stone-600 text-white rounded hover:bg-stone-700 font-bold shadow-sm"
-          >
-            重新开始
-          </button>
-        </div>
+
         
         <div className="flex-1 overflow-auto bg-gray-50 rounded p-2 text-sm font-mono flex flex-col-reverse">
            <div className="mt-2 pt-2 border-t border-gray-200">
