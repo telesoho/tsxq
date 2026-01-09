@@ -49,6 +49,7 @@ function App(): JSX.Element {
   const [tempSourceId, setTempSourceId] = useState<string | null>(null);
   const [isCorrectionMode, setIsCorrectionMode] = useState(false);
   const [isPanelVisible, setIsPanelVisible] = useState(true);
+  const [showAiHints, setShowAiHints] = useState(true);
 
   const [editingSquare, setEditingSquare] = useState<{ row: number, col: number } | null>(null);
   const [editingSquareImage, setEditingSquareImage] = useState<string | null>(null);
@@ -487,7 +488,7 @@ function App(): JSX.Element {
           selectedSquare={selectedSquare}
           lastMove={lastMove}
           isFlipped={isFlipped}
-          bestMoves={getBestMovesForBoard()}
+          bestMoves={showAiHints ? getBestMovesForBoard() : []}
         />
         
         {/* Toggle Panel Button (Floating when panel hidden) */}
@@ -547,6 +548,16 @@ function App(): JSX.Element {
            </label>
            
            <div className="mt-2 pt-2 border-t border-gray-200">
+             <label className="flex items-center gap-2 mb-2">
+                <input 
+                    type="checkbox" 
+                    checked={showAiHints}
+                    onChange={(e) => setShowAiHints(e.target.checked)}
+                    className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                />
+                <span className="text-gray-700 font-medium">显示AI提示 (Show Hints)</span>
+             </label>
+
              <label className="flex items-center gap-2">
                <span className="text-gray-600 font-medium">思考深度/时间:</span>
                <select 
