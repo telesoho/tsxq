@@ -1,5 +1,5 @@
-import React from 'react';
-import { BoardState, getPieceName, isRed } from '../lib/xiangqi';
+import React, { useRef, useLayoutEffect, useState } from 'react';
+import { BoardState, getPieceName, isRed, Piece } from '../lib/xiangqi';
 
 interface BoardProps {
   board: BoardState;
@@ -20,6 +20,93 @@ const CELL_SIZE = 60;
 const BOARD_WIDTH = CELL_SIZE * 8;
 const BOARD_HEIGHT = CELL_SIZE * 9;
 const PADDING = 40;
+
+interface SquareProps {
+    r: number;
+    c: number;
+    piece: Piece | null;
+    onSquareClick: (row: number, col: number) => void;
+    isSelected: boolean;
+    isLastMoveFrom: boolean;
+    isLastMoveTo: boolean;
+    lastMove: { from: { row: number, col: number }, to: { row: number, col: number } } | null;
+    isFlipped: boolean;
+}
+
+const Square: React.FC<SquareProps> = ({ r, c, piece, onSquareClick, isSelected, isLastMoveFrom, isLastMoveTo, lastMove, isFlipped }) => {
+    const [animStyle, setAnimStyle] = useState<React.CSSProperties>({ transform: 'translate(3px, 3px)' });
+    const lastAnimatedMoveRef = useRef<any>(null);
+
+    // Calculate visual position for static placement
+    const visualR = isFlipped ? 9 - r : r;
+    const visualC = isFlipped ? 8 - c : c;
+    const left = visualC * CELL_SIZE + PADDING - (CELL_SIZE - 6)/2;
+    const top = visualR * CELL_SIZE + PADDING - (CELL_SIZE - 6)/2;
+
+    useLayoutEffect(() => {
+        if (isLastMoveTo && lastMove && lastMove !== lastAnimatedMoveRef.current) {
+            lastAnimatedMoveRef.current = lastMove;
+
+            const fromR = lastMove.from.row;
+            const fromC = lastMove.from.col;
+            const toR = lastMove.to.row;
+            const toC = lastMove.to.col;
+
+            // Calculate visual delta
+            const visualFromR = isFlipped ? 9 - fromR : fromR;
+            const visualFromC = isFlipped ? 8 - fromC : fromC;
+            const visualToR = isFlipped ? 9 - toR : toR;
+            const visualToC = isFlipped ? 8 - toC : toC;
+
+            const deltaX = (visualFromC - visualToC) * CELL_SIZE;
+            const deltaY = (visualFromR - visualToR) * CELL_SIZE;
+
+            // Start position (with 3px offset for centering)
+            setAnimStyle({ 
+                transform: `translate(${deltaX + 3}px, ${deltaY + 3}px)`, 
+                transition: 'none' 
+            });
+
+            // Animate to final position
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    setAnimStyle({ 
+                        transform: `translate(3px, 3px)`, 
+                        transition: 'transform 0.2s ease-in-out' 
+                    });
+                });
+            });
+        }
+    }, [lastMove, isLastMoveTo, isFlipped, r, c]);
+
+    return (
+        <div
+            onClick={() => onSquareClick(r, c)}
+            className={`absolute flex items-center justify-center rounded-full cursor-pointer transition-transform
+              ${isSelected ? 'ring-4 ring-blue-500 z-10 scale-110' : ''}
+              ${(isLastMoveFrom || isLastMoveTo) && !isSelected ? 'ring-2 ring-green-500' : ''}
+            `}
+            style={{
+                width: CELL_SIZE - 6,
+                height: CELL_SIZE - 6,
+                left,
+                top,
+                ...animStyle
+            }}
+        >
+            {piece && (
+                <div className={`
+                    w-full h-full rounded-full border-2 flex items-center justify-center font-bold text-2xl shadow-md
+                    ${isRed(piece.color) ? 'bg-red-50 text-red-600 border-red-600' : 'bg-stone-800 text-stone-100 border-stone-900'}
+                `}>
+                    {getPieceName(piece.type, piece.color)}
+                </div>
+            )}
+            {/* Click target for empty squares */}
+            {!piece && <div className="w-full h-full opacity-0 hover:opacity-20 bg-blue-400 rounded-full"></div>}
+        </div>
+    );
+};
 
 export const Board: React.FC<BoardProps> = ({ board, onSquareClick, selectedSquare, lastMove, isFlipped = false, bestMoves = [] }) => {
   // Draw the grid
@@ -176,37 +263,19 @@ export const Board: React.FC<BoardProps> = ({ board, onSquareClick, selectedSqua
             const isLastMoveFrom = lastMove?.from.row === r && lastMove?.from.col === c;
             const isLastMoveTo = lastMove?.to.row === r && lastMove?.to.col === c;
             
-            // Calculate visual position
-            const visualR = isFlipped ? 9 - r : r;
-            const visualC = isFlipped ? 8 - c : c;
-
             return (
-              <div
+              <Square
                 key={`${r}-${c}`}
-                onClick={() => onSquareClick(r, c)}
-                className={`absolute flex items-center justify-center rounded-full cursor-pointer transition-transform
-                  ${isSelected ? 'ring-4 ring-blue-500 z-10 scale-110' : ''}
-                  ${(isLastMoveFrom || isLastMoveTo) && !isSelected ? 'ring-2 ring-green-500' : ''}
-                `}
-                style={{
-                  width: CELL_SIZE - 6,
-                  height: CELL_SIZE - 6,
-                  left: visualC * CELL_SIZE + PADDING - (CELL_SIZE - 6)/2,
-                  top: visualR * CELL_SIZE + PADDING - (CELL_SIZE - 6)/2,
-                  transform: `translate(3px, 3px)` // Center adjustment
-                }}
-              >
-                {piece && (
-                  <div className={`
-                    w-full h-full rounded-full border-2 flex items-center justify-center font-bold text-2xl shadow-md
-                    ${isRed(piece.color) ? 'bg-red-50 text-red-600 border-red-600' : 'bg-stone-800 text-stone-100 border-stone-900'}
-                  `}>
-                    {getPieceName(piece.type, piece.color)}
-                  </div>
-                )}
-                {/* Click target for empty squares */}
-                {!piece && <div className="w-full h-full opacity-0 hover:opacity-20 bg-blue-400 rounded-full"></div>}
-              </div>
+                r={r}
+                c={c}
+                piece={piece}
+                onSquareClick={onSquareClick}
+                isSelected={isSelected}
+                isLastMoveFrom={isLastMoveFrom}
+                isLastMoveTo={isLastMoveTo}
+                lastMove={lastMove}
+                isFlipped={isFlipped}
+              />
             );
           })
         ))}
