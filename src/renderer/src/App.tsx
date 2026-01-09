@@ -54,6 +54,18 @@ function App(): JSX.Element {
   const [editingSquare, setEditingSquare] = useState<{ row: number, col: number } | null>(null);
   const [editingSquareImage, setEditingSquareImage] = useState<string | null>(null);
 
+  // Simulation Mode State
+  const [isSimulationMode, setIsSimulationMode] = useState(false);
+  const [simulationSnapshot, setSimulationSnapshot] = useState<{
+      fen: string;
+      moveHistory: string[];
+      history: any[];
+      lastMove: any;
+      gameOver: string | null;
+      isRedAi: boolean;
+      isBlackAi: boolean;
+  } | null>(null);
+
   // Load saved corners
   useEffect(() => {
     try {
@@ -427,9 +439,57 @@ function App(): JSX.Element {
       return moves;
   };
 
+  const handleStartSimulation = () => {
+      // Save current state
+      setSimulationSnapshot({
+          fen,
+          moveHistory: [...moveHistory],
+          history: [...history],
+          lastMove,
+          gameOver,
+          isRedAi,
+          isBlackAi
+      });
+      setIsSimulationMode(true);
+      // Optional: Auto-switch to human vs human for easier simulation?
+      // setIsRedAi(false);
+      // setIsBlackAi(false);
+  };
+
+  const handleStopSimulation = () => {
+      if (!simulationSnapshot) return;
+      
+      // Restore state
+      setFen(simulationSnapshot.fen);
+      setMoveHistory(simulationSnapshot.moveHistory);
+      setHistory(simulationSnapshot.history);
+      setLastMove(simulationSnapshot.lastMove);
+      setGameOver(simulationSnapshot.gameOver);
+      setIsRedAi(simulationSnapshot.isRedAi);
+      setIsBlackAi(simulationSnapshot.isBlackAi);
+      
+      setIsSimulationMode(false);
+      setSimulationSnapshot(null);
+      
+      // Stop engine if it was thinking
+      if (isAiThinking) {
+           setIsAiThinking(false);
+           window.api.sendToEngine('stop');
+      }
+      // Clear info to force refresh
+      setEngineInfo({});
+  };
+
   return (
     <div className="flex h-screen bg-stone-200 p-8 gap-8 relative overflow-hidden">
       <div className="flex-1 flex justify-center items-center relative w-full">
+        {/* Simulation Indicator */}
+        {isSimulationMode && (
+            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 z-30 px-6 py-2 bg-amber-500 text-white font-bold rounded-b-lg shadow-lg animate-pulse">
+                推演模式 (Simulation Mode)
+            </div>
+        )}
+
         {/* Floating Undo Button - Top Left */}
         <button
             onClick={handleUndo}
@@ -447,40 +507,57 @@ function App(): JSX.Element {
             <span>悔棋</span>
         </button>
 
-        {/* Floating Restart Button - Top Right */}
-        <button
-            onClick={() => {
-              if (window.confirm('确定要重新开始对局吗？')) {
-                setFen(START_FEN);
-                setGameOver(null);
-                setIsCheckingRule(false);
-                setIsAiThinking(false);
-                setEngineInfo(null);
-                setMoveHistory([]);
-                setHistory([]);
-                setLastMove(null);
-              }
-            }}
-            className="absolute top-0 right-32 z-30 px-4 py-2 rounded-full font-bold shadow-lg bg-stone-600 text-white hover:bg-stone-700 border border-stone-700 flex items-center gap-2 transition-all"
-            title="重新开始 (Restart)"
-        >
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-             </svg>
-             <span>重开</span>
-        </button>
+        {/* Top Right Buttons Group */}
+        <div className="absolute top-0 right-0 z-30 flex gap-2">
+            {/* Simulation Button */}
+            <button
+                onClick={isSimulationMode ? handleStopSimulation : handleStartSimulation}
+                className={`px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 transition-all ${
+                    isSimulationMode 
+                    ? 'bg-amber-600 text-white hover:bg-amber-700 border border-amber-700' 
+                    : 'bg-purple-600 text-white hover:bg-purple-700 border border-purple-700'
+                }`}
+                title={isSimulationMode ? "结束推演" : "开始推演"}
+            >
+                <span>{isSimulationMode ? '⏹️' : '🎮'}</span> 
+                <span>{isSimulationMode ? '结束' : '推演'}</span>
+            </button>
 
-        {/* Floating Flip Button - Top Right */}
-        <button
-            onClick={() => setIsFlipped(!isFlipped)}
-            className="absolute top-0 right-0 z-30 px-4 py-2 rounded-full font-bold shadow-lg bg-white text-stone-700 hover:bg-stone-50 hover:text-stone-900 border border-stone-200 flex items-center gap-2 transition-all"
-            title="翻转棋盘 (Flip Board)"
-        >
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-             </svg>
-             <span>翻转</span>
-        </button>
+            {/* Restart Button */}
+            <button
+                onClick={() => {
+                if (window.confirm('确定要重新开始对局吗？')) {
+                    setFen(START_FEN);
+                    setGameOver(null);
+                    setIsCheckingRule(false);
+                    setIsAiThinking(false);
+                    setEngineInfo(null);
+                    setMoveHistory([]);
+                    setHistory([]);
+                    setLastMove(null);
+                }
+                }}
+                className="px-4 py-2 rounded-full font-bold shadow-lg bg-stone-600 text-white hover:bg-stone-700 border border-stone-700 flex items-center gap-2 transition-all"
+                title="重新开始 (Restart)"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>重开</span>
+            </button>
+
+            {/* Flip Button */}
+            <button
+                onClick={() => setIsFlipped(!isFlipped)}
+                className="px-4 py-2 rounded-full font-bold shadow-lg bg-white text-stone-700 hover:bg-stone-50 hover:text-stone-900 border border-stone-200 flex items-center gap-2 transition-all"
+                title="翻转棋盘 (Flip Board)"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+                <span>翻转</span>
+            </button>
+        </div>
 
         <Board 
           board={boardState.board} 
