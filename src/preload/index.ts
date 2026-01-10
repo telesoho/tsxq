@@ -21,6 +21,7 @@ const api = {
     return () => ipcRenderer.removeListener('engine:status', subscription);
   },
   getScreenSources: () => ipcRenderer.invoke('screen:getSources'),
+  predictBoard: (imageBase64: string) => ipcRenderer.invoke('vision:predict', imageBase64),
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

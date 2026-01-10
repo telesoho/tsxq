@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, SetStateAction } fro
 import { Board } from './components/Board'
 import { ScreenCapture } from './components/ScreenCapture'
 import { parseFen, generateFen, START_FEN, BoardState, PieceColor, PieceType, fromUciMove, getChineseMoveNotation } from './lib/xiangqi'
-import { BoardCalibration } from './components/BoardCalibration'
-import { recognizeBoardWithCorners, learnPiece, getSquareImage, BoardCorners } from './lib/vision'
+import { recognizeBoardViaApi } from './lib/vision'
 import { captureSource } from './lib/capture'
 
 function App(): JSX.Element {
@@ -24,7 +23,6 @@ function App(): JSX.Element {
   const [isCheckingRule, setIsCheckingRule] = useState(false);
   
   const [showCapture, setShowCapture] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isRecognizing, setIsRecognizing] = useState(false);
 
   // Refs for state access in callbacks without triggering re-renders/re-binding
@@ -44,15 +42,9 @@ function App(): JSX.Element {
   
   // Correction Mode State
   const [lastRecognizedImage, setLastRecognizedImage] = useState<string | null>(null);
-  const [lastCorners, setLastCorners] = useState<BoardCorners | null>(null);
   const [lastSourceId, setLastSourceId] = useState<string | null>(null);
-  const [tempSourceId, setTempSourceId] = useState<string | null>(null);
-  const [isCorrectionMode, setIsCorrectionMode] = useState(false);
   const [isPanelVisible, setIsPanelVisible] = useState(true);
   const [showAiHints, setShowAiHints] = useState(true);
-
-  const [editingSquare, setEditingSquare] = useState<{ row: number, col: number } | null>(null);
-  const [editingSquareImage, setEditingSquareImage] = useState<string | null>(null);
 
   // Simulation Mode State
   const [isSimulationMode, setIsSimulationMode] = useState(false);
@@ -65,18 +57,6 @@ function App(): JSX.Element {
       isRedAi: boolean;
       isBlackAi: boolean;
   } | null>(null);
-
-  // Load saved corners
-  useEffect(() => {
-    try {
-        const saved = localStorage.getItem('board_corners');
-        if (saved) {
-            setLastCorners(JSON.parse(saved));
-        }
-    } catch (e) {
-        console.error('Failed to load saved corners', e);
-    }
-  }, []);
 
   // Initialize Engine
   useEffect(() => {
@@ -302,7 +282,7 @@ function App(): JSX.Element {
   }, [isAiThinking, aiLimit]);
 
   const handleReRecognize = async () => {
-    if (!lastCorners) return;
+    if (!lastRecognizedImage && !lastSourceId) return;
     
     setIsRecognizing(true);
     try {
@@ -322,16 +302,17 @@ function App(): JSX.Element {
 
         if (!imageToProcess) throw new Error('No image to process');
 
-        const board = await recognizeBoardWithCorners(imageToProcess, lastCorners, (r, c, img) => {
-             console.log(`%c [${r},${c}]`, `background-image: url(${img}); background-size: contain; background-repeat: no-repeat; padding: 20px; color: transparent;`);
-        });
+        console.log("Attempting recognition via API...");
+        const result = await recognizeBoardViaApi(imageToProcess);
+        console.log("API Result:", result);
         
-        const newFen = generateFen(board, 'w');
-        setFen(newFen);
+        // The API returns the FEN directly
+        setFen(result.fen);
         setMoveHistory([]);
         setHistory([]);
         setLastMove(null);
         setGameOver(null);
+        setEngineInfo({}); // Clear stale analysis
     } catch(e) {
         console.error(e);
         alert('Re-recognition failed: ' + e);
@@ -340,51 +321,9 @@ function App(): JSX.Element {
     }
   };
 
-  const handlePieceCorrection = async (piece: { type: PieceType, color: PieceColor } | null) => {
-    if (!editingSquare || !lastRecognizedImage || !lastCorners) return;
-    
-    const { row, col } = editingSquare;
-    
-    setEditingSquare(null);
-    setIsRecognizing(true);
 
-    try {
-        // Always learn, even if piece is null (Empty)
-        await learnPiece(lastRecognizedImage, lastCorners, row, col, piece);
-        
-        const board = await recognizeBoardWithCorners(lastRecognizedImage, lastCorners, (r, c, img) => {
-             console.log(`%c [${r},${c}]`, `background-image: url(${img}); background-size: contain; background-repeat: no-repeat; padding: 20px; color: transparent;`);
-        });
-        
-        const newFen = generateFen(board, 'w');
-        setFen(newFen);
-        setMoveHistory([]);
-        setHistory([]);
-        setLastMove(null);
-        setGameOver(null);
-    } catch(e) {
-        console.error(e);
-        alert('Correction failed: ' + e);
-    } finally {
-        setIsRecognizing(false);
-    }
-  };
 
   const handleSquareClick = async (row: number, col: number) => {
-    if (isCorrectionMode) {
-      setEditingSquare({ row, col });
-      if (lastRecognizedImage && lastCorners) {
-          try {
-             const img = await getSquareImage(lastRecognizedImage, lastCorners, row, col);
-             setEditingSquareImage(img);
-          } catch(e) {
-             console.error('Failed to get square image', e);
-             setEditingSquareImage(null);
-          }
-      }
-      return;
-    }
-
     if (gameOver) return;
 
     const piece = boardState.board[row][col];
@@ -694,7 +633,7 @@ function App(): JSX.Element {
                 <span>📷</span> 识别棋盘
             </button>
             
-            {lastRecognizedImage && lastCorners && (
+            {lastRecognizedImage && (
                 <button
                     onClick={handleReRecognize}
                     disabled={isRecognizing}
@@ -703,16 +642,6 @@ function App(): JSX.Element {
                     <span>🔄</span> 重新识别
                 </button>
             )}
-            
-            <label className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer select-none bg-white p-2 rounded shadow-sm border border-stone-200">
-                <input 
-                    type="checkbox" 
-                    checked={isCorrectionMode}
-                    onChange={(e) => setIsCorrectionMode(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                />
-                <span>纠错模式 (点击棋盘修正)</span>
-            </label>
         </div>
 
         <div className={`p-4 rounded ${engineStatus.includes('Failed') ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}>
@@ -747,97 +676,31 @@ function App(): JSX.Element {
       {showCapture && (
         <ScreenCapture 
           onCancel={() => setShowCapture(false)}
-          onCapture={(imageData, sourceId) => {
+          onCapture={async (imageData, sourceId) => {
             setShowCapture(false);
-            setCapturedImage(imageData);
-            setTempSourceId(sourceId);
-          }}
-        />
-      )}
-      
-      {capturedImage && (
-        <BoardCalibration
-          imageData={capturedImage}
-          initialCorners={lastCorners}
-          onCancel={() => {
-              setCapturedImage(null);
-              setTempSourceId(null);
-          }}
-          onConfirm={async (corners) => {
-            setLastRecognizedImage(capturedImage);
-            setLastCorners(corners);
-            if (tempSourceId) setLastSourceId(tempSourceId);
-            localStorage.setItem('board_corners', JSON.stringify(corners));
-            setCapturedImage(null);
-            setTempSourceId(null);
+            setLastRecognizedImage(imageData);
+            if (sourceId) setLastSourceId(sourceId);
+            
             setIsRecognizing(true);
             try {
-              const board = await recognizeBoardWithCorners(capturedImage, corners, (row, col, debugImg) => {
-                 console.log(`%c [${row},${col}]`, `background-image: url(${debugImg}); background-size: contain; background-repeat: no-repeat; padding: 20px; color: transparent;`);
-              });
-              
-              setBoardState({ board, turn: 'w' }); // 'w' is Red in our internal representation
-              const newFen = generateFen(board, 'w');
-              setFen(newFen);
-              setMoveHistory([]); // Clear history on new board
-              setHistory([]);
-              setLastMove(null);
-            } catch (e) {
-              console.error(e);
-              alert('Recognition failed: ' + e);
+                console.log("Attempting recognition via API...");
+                const result = await recognizeBoardViaApi(imageData);
+                console.log("API Result:", result);
+                
+                setFen(result.fen);
+                setMoveHistory([]);
+                setHistory([]);
+                setLastMove(null);
+                setGameOver(null);
+                setEngineInfo({});
+            } catch(e) {
+                console.error(e);
+                alert('Recognition failed: ' + e);
             } finally {
-              setIsRecognizing(false);
+                setIsRecognizing(false);
             }
           }}
         />
-      )}
-      
-      {editingSquare && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setEditingSquare(null)}>
-            <div className="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center" onClick={e => e.stopPropagation()}>
-                <h3 className="text-lg font-bold mb-4 text-center">选择正确的棋子</h3>
-                
-                {editingSquareImage && (
-                    <div className="mb-4 border-2 border-blue-500 rounded p-1">
-                        <img src={editingSquareImage} alt="Square" className="w-24 h-24 object-contain" />
-                    </div>
-                )}
-
-                <div className="grid grid-cols-7 gap-2 mb-4">
-                    {/* Red Pieces */}
-                    {[
-                        {l:'車', t:'r', c:'w'}, {l:'馬', t:'n', c:'w'}, {l:'相', t:'b', c:'w'}, 
-                        {l:'仕', t:'a', c:'w'}, {l:'帥', t:'k', c:'w'}, {l:'炮', t:'c', c:'w'}, {l:'兵', t:'p', c:'w'}
-                    ].map(p => (
-                        <button key={'r'+p.l} 
-                            onClick={() => handlePieceCorrection({ type: p.t as any, color: p.c as any })} 
-                            className="w-10 h-10 text-xl border-2 border-red-500 text-red-600 font-bold rounded-full hover:bg-red-50 flex items-center justify-center"
-                        >
-                            {p.l}
-                        </button>
-                    ))}
-                </div>
-                <div className="grid grid-cols-7 gap-2 mb-4">
-                    {/* Black Pieces */}
-                    {[
-                        {l:'車', t:'r', c:'b'}, {l:'馬', t:'n', c:'b'}, {l:'象', t:'b', c:'b'}, 
-                        {l:'士', t:'a', c:'b'}, {l:'將', t:'k', c:'b'}, {l:'炮', t:'c', c:'b'}, {l:'卒', t:'p', c:'b'}
-                    ].map(p => (
-                        <button key={'b'+p.l} 
-                            onClick={() => handlePieceCorrection({ type: p.t as any, color: p.c as any })} 
-                            className="w-10 h-10 text-xl border-2 border-black text-black font-bold rounded-full hover:bg-gray-100 flex items-center justify-center"
-                        >
-                            {p.l}
-                        </button>
-                    ))}
-                </div>
-                 <div className="flex gap-2 w-full">
-                     <button onClick={() => handlePieceCorrection(null)} className="flex-1 py-2 bg-stone-200 rounded hover:bg-stone-300 font-bold text-stone-700 border-2 border-stone-400">
-                        空白 (Empty)
-                     </button>
-                 </div>
-            </div>
-        </div>
       )}
     </div>
   )

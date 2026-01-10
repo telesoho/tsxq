@@ -43,6 +43,7 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
       contextIsolation: true,
+      webSecurity: false,
     }
   })
 
@@ -96,6 +97,42 @@ function createWindow(): void {
   ipcMain.handle('engine:send', (_, command: string) => {
     if (engine) {
       engine.send(command);
+    }
+  });
+
+  ipcMain.handle('vision:predict', async (_, imageBase64: string) => {
+    try {
+      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, 'base64');
+      
+      const boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
+      const body = Buffer.concat([
+        Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="board.png"\r\nContent-Type: image/png\r\n\r\n`),
+        buffer,
+        Buffer.from(`\r\n--${boundary}--\r\n`)
+      ]);
+
+      const response = await fetch('http://localhost:8000/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': `multipart/form-data; boundary=${boundary}`
+        },
+        body: body as any
+      });
+
+      if (!response.ok) {
+        let errorMsg = `API Error: ${response.status} ${response.statusText}`;
+        try {
+            const err = await response.json() as any;
+            if (err.detail) errorMsg += ` - ${JSON.stringify(err.detail)}`;
+        } catch (e) {}
+        throw new Error(errorMsg);
+      }
+      
+      return await response.json();
+    } catch (e: any) {
+      console.error('Vision API error:', e);
+      throw new Error(e.message);
     }
   });
 
