@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, SetStateAction } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, SetStateAction } from 'react'
 import { Board } from './components/Board'
 import { ScreenCapture } from './components/ScreenCapture'
 import { parseFen, generateFen, START_FEN, BoardState, PieceColor, PieceType, fromUciMove, getChineseMoveNotation } from './lib/xiangqi'
@@ -8,7 +8,7 @@ import { captureSource } from './lib/capture'
 
 function App(): JSX.Element {
   const [fen, setFen] = useState(START_FEN);
-  const [boardState, setBoardState] = useState<{ board: BoardState, turn: PieceColor }>(parseFen(START_FEN));
+  const boardState = useMemo(() => parseFen(fen), [fen]);
   const [selectedSquare, setSelectedSquare] = useState<{ row: number, col: number } | null>(null);
   const [lastMove, setLastMove] = useState<{ from: { row: number, col: number }, to: { row: number, col: number } } | null>(null);
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
@@ -116,10 +116,7 @@ function App(): JSX.Element {
 
   // Update internal state when FEN changes
   useEffect(() => {
-    const parsed = parseFen(fen);
-    setBoardState(parsed);
-    
-    const isCurrentTurnAi = (parsed.turn === 'w' && isRedAi) || (parsed.turn === 'b' && isBlackAi);
+    const isCurrentTurnAi = (boardState.turn === 'w' && isRedAi) || (boardState.turn === 'b' && isBlackAi);
 
     // If it's AI's turn
     if (isCurrentTurnAi && engineStatus.toLowerCase() === 'ready' && !isAiThinking && !gameOver) {
@@ -144,9 +141,22 @@ function App(): JSX.Element {
           : `go depth ${aiLimit.value}`;
       window.api.sendToEngine(cmd);
     }
-  }, [fen, engineStatus, isAiThinking, gameOver, isRedAi, isBlackAi, aiLimit]);
+  }, [fen, boardState, engineStatus, isAiThinking, gameOver, isRedAi, isBlackAi, aiLimit]);
 
   const applyMove = useCallback((from: { row: number, col: number }, to: { row: number, col: number }) => {
+    // Safety check: ensure source has a piece
+    const piece = boardState.board[from.row][from.col];
+    if (!piece) {
+        console.error("Attempted to move from empty square", from);
+        return;
+    }
+
+    // Safety check: ensure we are moving the correct color
+    if (piece.color !== boardState.turn) {
+        console.error(`Attempted to move wrong color piece. Turn: ${boardState.turn}, Piece: ${piece.color}`);
+        return;
+    }
+
     // Generate notation before modifying the board
     const notation = getChineseMoveNotation(boardState.board, { from, to });
     
@@ -171,6 +181,7 @@ function App(): JSX.Element {
     // If AI is thinking, interrupt it
     if (isAiThinking) {
         setIsAiThinking(false);
+        isAiThinkingRef.current = false; // Prevent race condition
         window.api.sendToEngine('stop');
         
         // Undo 1 step
@@ -241,16 +252,30 @@ function App(): JSX.Element {
       // If we are not expecting AI to move (e.g. cancelled by Undo), ignore
       if (!isAiThinkingRef.current) return;
 
-      setIsAiThinking(false);
-      if (moveStr && moveStr !== '(none)') {
-        // Apply AI move
-        const move = fromUciMove(moveStr);
-        applyMove(move.from, move.to);
-      } else {
-        // AI has no moves
-        const loser = boardState.turn === 'w' ? 'Red (AI)' : 'Black (AI)';
-        setGameOver(`${loser} Lost! (No legal moves)`);
+      if (!moveStr || moveStr === '(none)') {
+          isAiThinkingRef.current = false;
+          setIsAiThinking(false);
+          const loser = boardState.turn === 'w' ? 'Red (AI)' : 'Black (AI)';
+          setGameOver(`${loser} Lost! (No legal moves)`);
+          return;
       }
+
+      const move = fromUciMove(moveStr);
+      const piece = boardState.board[move.from.row][move.from.col];
+      
+      // Check for Ghost Move (Analysis result arriving during AI turn)
+      // If the move corresponds to a piece of the wrong color, it's likely from the previous turn's analysis
+      if (piece && piece.color !== boardState.turn) {
+          console.warn("Ignored ghost move (wrong turn color):", moveStr);
+          return; // Keep isAiThinking=true, wait for real move
+      }
+
+      // Prevent race conditions: immediately mark as not thinking
+      isAiThinkingRef.current = false;
+      setIsAiThinking(false);
+      
+      // Apply AI move
+      applyMove(move.from, move.to);
     });
     return cleanup;
   }, [applyMove]);
@@ -259,17 +284,22 @@ function App(): JSX.Element {
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isAiThinking) {
+        // Calculate timeout based on AI limit
+        // For 'time' mode: give it a buffer (e.g., 2 seconds) beyond the limit
+        // For 'depth' mode: use a longer safety timeout (e.g., 60 seconds) as depth time is variable
+        const timeoutMs = aiLimit.type === 'time' ? aiLimit.value + 2000 : 60000;
+
         timer = setTimeout(() => {
             if (isAiThinkingRef.current) {
-                console.warn('AI thinking timeout, forcing reset');
+                console.warn(`AI thinking timeout (${timeoutMs}ms), forcing reset`);
                 setIsAiThinking(false);
                 window.api.sendToEngine('stop');
                 setEngineStatus('Ready (Reset after timeout)');
             }
-        }, 5000); // 5 seconds timeout
+        }, timeoutMs);
     }
     return () => clearTimeout(timer);
-  }, [isAiThinking]);
+  }, [isAiThinking, aiLimit]);
 
   const handleReRecognize = async () => {
     if (!lastCorners) return;
@@ -296,7 +326,6 @@ function App(): JSX.Element {
              console.log(`%c [${r},${c}]`, `background-image: url(${img}); background-size: contain; background-repeat: no-repeat; padding: 20px; color: transparent;`);
         });
         
-        setBoardState({ board, turn: 'w' });
         const newFen = generateFen(board, 'w');
         setFen(newFen);
         setMoveHistory([]);
@@ -327,7 +356,6 @@ function App(): JSX.Element {
              console.log(`%c [${r},${c}]`, `background-image: url(${img}); background-size: contain; background-repeat: no-repeat; padding: 20px; color: transparent;`);
         });
         
-        setBoardState({ board, turn: 'w' });
         const newFen = generateFen(board, 'w');
         setFen(newFen);
         setMoveHistory([]);
