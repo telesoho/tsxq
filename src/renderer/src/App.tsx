@@ -58,6 +58,65 @@ function App(): JSX.Element {
       isBlackAi: boolean;
   } | null>(null);
 
+  // Timer State
+  const [redTime, setRedTime] = useState(0);
+  const [blackTime, setBlackTime] = useState(0);
+  const [isTimerActive, setIsTimerActive] = useState(false);
+  const [activeTimer, setActiveTimer] = useState<'w' | 'b' | null>(null);
+
+  // Timer Tick Effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isTimerActive && activeTimer && !gameOver) {
+      interval = setInterval(() => {
+        if (activeTimer === 'w') {
+          setRedTime(prev => prev + 1);
+        } else {
+          setBlackTime(prev => prev + 1);
+        }
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerActive, activeTimer, gameOver]);
+
+  // Sync Timer with Turn
+  useEffect(() => {
+    if (isTimerActive) {
+      setActiveTimer(boardState.turn);
+    }
+  }, [boardState.turn, isTimerActive]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleTimerClick = (color: 'w' | 'b') => {
+    // If game is over, do nothing
+    if (gameOver) return;
+
+    // Start timer if not active
+    if (!isTimerActive) {
+        setIsTimerActive(true);
+    }
+
+    // If the clicked timer does not match current turn in FEN, switch the turn
+    if (boardState.turn !== color) {
+        // Generate new FEN with switched turn
+        // Note: generateFen requires the board array and the *next* turn.
+        // But here we want to set the *current* state's turn.
+        // generateFen(board, color) produces a FEN where it is `color`'s turn.
+        const newFen = generateFen(boardState.board, color);
+        setFen(newFen);
+        // Also clear any move history/selection as the game state is being manually adjusted?
+        // Maybe not necessary, but safe to clear selection.
+        setSelectedSquare(null);
+    }
+    
+    setActiveTimer(color);
+  };
+
   // Initialize Engine
   useEffect(() => {
     const cleanupStatus = window.api.onEngineStatus((status: SetStateAction<string>) => setEngineStatus(status));
@@ -313,6 +372,12 @@ function App(): JSX.Element {
         setLastMove(null);
         setGameOver(null);
         setEngineInfo({}); // Clear stale analysis
+
+        // Reset Timers
+        setRedTime(0);
+        setBlackTime(0);
+        setIsTimerActive(false);
+        setActiveTimer(null);
     } catch(e) {
         console.error(e);
         alert('Re-recognition failed: ' + e);
@@ -450,6 +515,63 @@ function App(): JSX.Element {
   return (
     <div className="flex h-screen bg-stone-200 p-8 gap-8 relative overflow-hidden">
       <div className="flex-1 flex justify-center items-center relative w-full">
+        {/* Timers - Centered on Left */}
+        <div className="absolute left-8 top-1/2 transform -translate-y-1/2 flex flex-col gap-32 z-20">
+            {/* Top Timer */}
+            {isFlipped ? (
+                /* Red Timer when Flipped (Top) */
+                <div 
+                    onClick={() => handleTimerClick('w')}
+                    className={`p-4 rounded-lg shadow-lg cursor-pointer transition-all border-2 w-32 text-center
+                    ${activeTimer === 'w' ? 'bg-red-700 text-white border-amber-500 scale-110' : 'bg-red-900 text-red-300 border-transparent hover:border-red-500'}
+                    ${!isTimerActive ? 'animate-pulse ring-4 ring-amber-400/50' : ''}
+                    `}
+                >
+                    <div className="text-sm mb-1 font-bold">红方 (Red)</div>
+                    <div className="text-2xl font-mono">{formatTime(redTime)}</div>
+                </div>
+            ) : (
+                /* Black Timer when Normal (Top) */
+                <div 
+                    onClick={() => handleTimerClick('b')}
+                    className={`p-4 rounded-lg shadow-lg cursor-pointer transition-all border-2 w-32 text-center
+                    ${activeTimer === 'b' ? 'bg-stone-800 text-white border-amber-500 scale-110' : 'bg-stone-700 text-stone-400 border-transparent hover:border-stone-500'}
+                    ${!isTimerActive ? 'animate-pulse ring-4 ring-amber-400/50' : ''}
+                    `}
+                >
+                    <div className="text-sm mb-1 font-bold">黑方 (Black)</div>
+                    <div className="text-2xl font-mono">{formatTime(blackTime)}</div>
+                </div>
+            )}
+
+            {/* Bottom Timer */}
+            {isFlipped ? (
+                /* Black Timer when Flipped (Bottom) */
+                <div 
+                    onClick={() => handleTimerClick('b')}
+                    className={`p-4 rounded-lg shadow-lg cursor-pointer transition-all border-2 w-32 text-center
+                    ${activeTimer === 'b' ? 'bg-stone-800 text-white border-amber-500 scale-110' : 'bg-stone-700 text-stone-400 border-transparent hover:border-stone-500'}
+                    ${!isTimerActive ? 'animate-pulse ring-4 ring-amber-400/50' : ''}
+                    `}
+                >
+                    <div className="text-sm mb-1 font-bold">黑方 (Black)</div>
+                    <div className="text-2xl font-mono">{formatTime(blackTime)}</div>
+                </div>
+            ) : (
+                /* Red Timer when Normal (Bottom) */
+                <div 
+                    onClick={() => handleTimerClick('w')}
+                    className={`p-4 rounded-lg shadow-lg cursor-pointer transition-all border-2 w-32 text-center
+                    ${activeTimer === 'w' ? 'bg-red-700 text-white border-amber-500 scale-110' : 'bg-red-900 text-red-300 border-transparent hover:border-red-500'}
+                    ${!isTimerActive ? 'animate-pulse ring-4 ring-amber-400/50' : ''}
+                    `}
+                >
+                    <div className="text-sm mb-1 font-bold">红方 (Red)</div>
+                    <div className="text-2xl font-mono">{formatTime(redTime)}</div>
+                </div>
+            )}
+        </div>
+
         {/* Simulation Indicator */}
         {isSimulationMode && (
             <div className="absolute top-0 left-1/2 transform -translate-x-1/2 z-30 px-6 py-2 bg-amber-500 text-white font-bold rounded-b-lg shadow-lg animate-pulse">
@@ -494,14 +616,23 @@ function App(): JSX.Element {
             <button
                 onClick={() => {
                 if (window.confirm('确定要重新开始对局吗？')) {
+                    // Stop Engine first
+                    window.api.sendToEngine('stop');
+                    
                     setFen(START_FEN);
                     setGameOver(null);
                     setIsCheckingRule(false);
                     setIsAiThinking(false);
-                    setEngineInfo(null);
+                    setEngineInfo({}); // Reset Engine Info to empty object instead of null to prevent errors
                     setMoveHistory([]);
                     setHistory([]);
                     setLastMove(null);
+                    
+                    // Reset Timers
+                    setRedTime(0);
+                    setBlackTime(0);
+                    setIsTimerActive(false);
+                    setActiveTimer(null);
                 }
                 }}
                 className="px-4 py-2 rounded-full font-bold shadow-lg bg-stone-600 text-white hover:bg-stone-700 border border-stone-700 flex items-center gap-2 transition-all"
@@ -693,6 +824,11 @@ function App(): JSX.Element {
                 setLastMove(null);
                 setGameOver(null);
                 setEngineInfo({});
+                // Reset Timers
+                setRedTime(0);
+                setBlackTime(0);
+                setIsTimerActive(false);
+                setActiveTimer(null);
             } catch(e) {
                 console.error(e);
                 alert('Recognition failed: ' + e);
