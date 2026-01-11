@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, SetStateAction } from 'react'
 import { Board } from './components/Board'
 import { ScreenCapture } from './components/ScreenCapture'
-import { parseFen, generateFen, START_FEN, BoardState, PieceColor, PieceType, fromUciMove, getChineseMoveNotation } from './lib/xiangqi'
+import { parseFen, generateFen, START_FEN, BoardState, PieceColor, PieceType, fromUciMove, getChineseMoveNotation, validateFen } from './lib/xiangqi'
 import { recognizeBoardViaApi } from './lib/vision'
 import { captureSource } from './lib/capture'
 
@@ -367,6 +367,12 @@ function App(): JSX.Element {
         
         // The API returns the FEN directly
         setFen(result.fen);
+        
+        const validation = validateFen(result.fen);
+        if (!validation.valid) {
+             alert(`识别结果可能不完整: ${validation.error}\nRecognition might be incomplete.`);
+        }
+
         setMoveHistory([]);
         setHistory([]);
         setLastMove(null);

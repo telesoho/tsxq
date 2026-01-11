@@ -11,6 +11,33 @@ export type BoardState = (Piece | null)[][]; // 10 rows, 9 cols
 
 export const START_FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1";
 
+export function validateFen(fen: string): { valid: boolean; error?: string } {
+  try {
+    const { board } = parseFen(fen);
+    let redKing = false;
+    let blackKing = false;
+
+    for (let r = 0; r < 10; r++) {
+      for (let c = 0; c < 9; c++) {
+        const piece = board[r][c];
+        if (piece) {
+          if (piece.type === 'k') {
+            if (piece.color === 'w') redKing = true;
+            else blackKing = true;
+          }
+        }
+      }
+    }
+
+    if (!redKing) return { valid: false, error: '缺少红帅 (Red King missing)' };
+    if (!blackKing) return { valid: false, error: '缺少黑将 (Black King missing)' };
+
+    return { valid: true };
+  } catch (e) {
+    return { valid: false, error: 'FEN格式错误 (Invalid FEN format)' };
+  }
+}
+
 export function parseFen(fen: string): { board: BoardState, turn: PieceColor } {
   const [position, turn] = fen.split(' ');
   const rows = position.split('/');
