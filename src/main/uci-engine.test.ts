@@ -127,5 +127,50 @@ describe('UCIEngine (Integration)', () => {
     expect(crashSpy).not.toHaveBeenCalled();
     expect((engine as any).process).toBeNull();
   });
+
+  it('should handle checkmate (dead position) correctly', async () => {
+    // 1. Start engine
+    const readyPromise = new Promise<void>((resolve) => {
+        engine.on('ready', () => resolve());
+    });
+    engine.start();
+    await readyPromise;
+
+    // 2. Send Checkmate FEN
+    // FEN: Red King e0, Advisor f0. 
+    // Black Rooks: d0, d1, e1, e2.
+    // Red King e0 checked by d0 and e1.
+    // d0 protected by d1. e1 protected by e2.
+    // Advisor f0 cannot capture e1 because d0 still checks.
+    // King cannot move.
+    const mateFen = '9/9/9/9/9/9/9/4r4/3rr4/3rKA3 w - - 0 1';
+    engine.send(`position fen ${mateFen}`);
+
+    // 3. Request analysis
+    const bestMovePromise = new Promise<string>((resolve) => {
+        engine.once('bestmove', (move) => resolve(move));
+    });
+    engine.send('go depth 1');
+
+    // 4. Verify (none)
+    const move = await bestMovePromise;
+    expect(move).toBe('(none)');
+    
+    // 5. Verify engine is still alive
+    expect((engine as any).process).not.toBeNull();
+    expect((engine as any).process.exitCode).toBeNull();
+
+    // 6. Verify we can start a new game (recover from mate state)
+    const newGamePromise = new Promise<string>((resolve) => {
+        engine.once('bestmove', (move) => resolve(move));
+    });
+    
+    engine.send('position startpos');
+    engine.send('go depth 1');
+    
+    const nextMove = await newGamePromise;
+    expect(nextMove).not.toBe('(none)');
+    expect(nextMove).toBeTruthy();
+  });
 });
 
