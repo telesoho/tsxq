@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, SetStateAction } fro
 import { Board } from './components/Board'
 import { ScreenCapture } from './components/ScreenCapture'
 import { ChessTimer } from './components/ChessTimer'
-import { parseFen, generateFen, START_FEN, BoardState, PieceColor, PieceType, fromUciMove, getChineseMoveNotation, validateFen } from './lib/xiangqi'
+import { parseFen, generateFen, START_FEN, BoardState, PieceColor, PieceType, fromUciMove, getChineseMoveNotation, validateFen, validateMove } from './lib/xiangqi'
 import { recognizeBoardViaApi } from './lib/vision'
 import { captureSource } from './lib/capture'
 
@@ -414,6 +414,25 @@ function App(): JSX.Element {
          // Reselect if clicking own piece
          setSelectedSquare({ row, col });
          return;
+      }
+
+      // Validate move rules
+      const validation = validateMove(boardState.board, { from: selectedSquare, to: { row, col } });
+      if (!validation.valid) {
+          // Optional: Show error to user (toast or alert)
+          console.warn('Invalid move:', validation.error);
+          // For now, maybe just blink or do nothing? Or alert?
+          // Let's use a simple alert for feedback as requested "check if legal" implies feedback.
+          // But maybe user just wants to prevent illegal moves.
+          // Let's use console warn + maybe a small UI indication if possible, but alert is safest for now.
+          // Actually, let's just prevent it. If user wants feedback, they can check console. 
+          // Re-reading user request: "Check if legal before move". 
+          // Usually UI should prevent illegal moves silently or with a shake.
+          // Given the codebase uses alerts for errors, I'll add a comment or small alert?
+          // I'll stick to preventing the move. The user can click again if they want to re-select.
+          // To be helpful, I will show an alert so they know WHY it failed (e.g. "King facing King").
+          alert(validation.error); 
+          return;
       }
 
       // Apply move locally

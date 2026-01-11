@@ -138,6 +138,193 @@ export function validateFen(fen: string): { valid: boolean; error?: string } {
   }
 }
 
+export function validateMove(board: BoardState, move: { from: { row: number, col: number }, to: { row: number, col: number } }): { valid: boolean; error?: string } {
+    const { from, to } = move;
+    const piece = board[from.row][from.col];
+  
+    // 1. Basic checks
+    if (!piece) return { valid: false, error: '无棋子 (No piece)' };
+    if (from.row === to.row && from.col === to.col) return { valid: false, error: '目标位置相同 (Same square)' };
+    
+    const target = board[to.row][to.col];
+    if (target && target.color === piece.color) return { valid: false, error: '不能吃自己的棋子 (Cannot capture own piece)' };
+  
+    // 2. Specific piece rules
+    const dr = to.row - from.row;
+    const dc = to.col - from.col;
+    const absDr = Math.abs(dr);
+    const absDc = Math.abs(dc);
+  
+    switch (piece.type) {
+      case 'k': // King / General
+        // 1 step orthogonal
+        if ((absDr === 1 && absDc === 0) || (absDr === 0 && absDc === 1)) {
+            // Check Palace
+            if (to.col < 3 || to.col > 5) return { valid: false, error: '将帅不能出九宫 (King cannot leave palace)' };
+            if (piece.color === 'w') {
+                if (to.row < 7 || to.row > 9) return { valid: false, error: '帅不能出九宫 (Red King cannot leave palace)' };
+            } else {
+                if (to.row < 0 || to.row > 2) return { valid: false, error: '将不能出九宫 (Black King cannot leave palace)' };
+            }
+        } else {
+            return { valid: false, error: '将帅只能走一步 (King must move 1 step orthogonally)' };
+        }
+        break;
+  
+      case 'a': // Advisor
+          // 1 step diagonal
+          if (absDr === 1 && absDc === 1) {
+              // Check Palace
+              if (to.col < 3 || to.col > 5) return { valid: false, error: '士不能出九宫 (Advisor cannot leave palace)' };
+              if (piece.color === 'w') {
+                  if (to.row < 7 || to.row > 9) return { valid: false, error: '仕不能出九宫 (Red Advisor cannot leave palace)' };
+              } else {
+                  if (to.row < 0 || to.row > 2) return { valid: false, error: '士不能出九宫 (Black Advisor cannot leave palace)' };
+              }
+          } else {
+              return { valid: false, error: '士只能走斜线 (Advisor must move 1 step diagonally)' };
+          }
+          break;
+  
+      case 'b': // Bishop / Elephant
+          // 2 steps diagonal
+          if (absDr === 2 && absDc === 2) {
+              // Check River
+              if (piece.color === 'w') {
+                  if (to.row < 5) return { valid: false, error: '相不能过河 (Red Bishop cannot cross river)' };
+              } else {
+                  if (to.row > 4) return { valid: false, error: '象不能过河 (Black Bishop cannot cross river)' };
+              }
+              // Check Eye (Block)
+              const eyeR = from.row + dr / 2;
+              const eyeC = from.col + dc / 2;
+              if (board[eyeR][eyeC]) return { valid: false, error: '塞象眼 (Elephant eye is blocked)' };
+          } else {
+              return { valid: false, error: '相/象只能走田字 (Bishop must move 2 steps diagonally)' };
+          }
+          break;
+          
+      case 'n': // Knight / Horse
+          // L-shape: 2+1 or 1+2
+          if (!((absDr === 2 && absDc === 1) || (absDr === 1 && absDc === 2))) {
+               return { valid: false, error: '马只能走日字 (Knight must move in L-shape)' };
+          }
+          // Check Leg (Block)
+          if (absDr === 2) {
+              const legR = from.row + (dr > 0 ? 1 : -1);
+              if (board[legR][from.col]) return { valid: false, error: '别马腿 (Knight leg is blocked)' };
+          } else {
+              const legC = from.col + (dc > 0 ? 1 : -1);
+              if (board[from.row][legC]) return { valid: false, error: '别马腿 (Knight leg is blocked)' };
+          }
+          break;
+  
+      case 'r': // Rook
+          if (from.row !== to.row && from.col !== to.col) return { valid: false, error: '车只能走直线 (Rook must move straight)' };
+          // Check obstruction
+          if (!checkPathClear(board, from, to)) return { valid: false, error: '车路受阻 (Rook path is blocked)' };
+          break;
+  
+      case 'c': // Cannon
+          if (from.row !== to.row && from.col !== to.col) return { valid: false, error: '炮只能走直线 (Cannon must move straight)' };
+          const piecesBetween = countPiecesBetween(board, from, to);
+          if (target) {
+              // Capture: must have exactly 1 piece between (screen)
+              if (piecesBetween !== 1) return { valid: false, error: '炮吃子需要一个炮架 (Cannon needs 1 screen to capture)' };
+          } else {
+              // Move: must have 0 pieces between
+              if (piecesBetween !== 0) return { valid: false, error: '炮路受阻 (Cannon path is blocked)' };
+          }
+          break;
+  
+      case 'p': // Pawn
+          // Red moves UP (-1), Black moves DOWN (+1)
+          const forward = piece.color === 'w' ? -1 : 1;
+          
+          // Before river: only forward
+          // After river: forward or sideways
+          const isCrossedRiver = piece.color === 'w' ? from.row <= 4 : from.row >= 5;
+          
+          if (isCrossedRiver) {
+              // Allow forward or sideways
+              // Forward: dr == forward, dc == 0
+              // Sideways: dr == 0, absDc == 1
+              const isForward = dr === forward && dc === 0;
+              const isSideways = dr === 0 && absDc === 1;
+              if (!isForward && !isSideways) return { valid: false, error: '过河兵只能向前或向左右移动 (Pawn can only move forward or sideways after crossing river)' };
+          } else {
+              // Only forward
+              if (dr !== forward || dc !== 0) return { valid: false, error: '兵只能向前移动 (Pawn can only move forward before crossing river)' };
+          }
+          break;
+    }
+    
+    // 3. Check Flying General (Simulate Move)
+    const nextBoard = board.map(row => [...row]);
+    nextBoard[to.row][to.col] = piece;
+    nextBoard[from.row][from.col] = null;
+    
+    if (isFlyingGeneral(nextBoard)) {
+         return { valid: false, error: '将帅照面 (Flying General)' };
+    }
+  
+    return { valid: true };
+}
+
+function countPiecesBetween(board: BoardState, from: { row: number, col: number }, to: { row: number, col: number }): number {
+    let count = 0;
+    if (from.row === to.row) {
+        const minC = Math.min(from.col, to.col);
+        const maxC = Math.max(from.col, to.col);
+        for (let c = minC + 1; c < maxC; c++) {
+            if (board[from.row][c]) count++;
+        }
+    } else {
+        const minR = Math.min(from.row, to.row);
+        const maxR = Math.max(from.row, to.row);
+        for (let r = minR + 1; r < maxR; r++) {
+            if (board[r][from.col]) count++;
+        }
+    }
+    return count;
+}
+
+function checkPathClear(board: BoardState, from: { row: number, col: number }, to: { row: number, col: number }): boolean {
+    return countPiecesBetween(board, from, to) === 0;
+}
+
+function isFlyingGeneral(board: BoardState): boolean {
+    let redKing: { row: number, col: number } | null = null;
+    let blackKing: { row: number, col: number } | null = null;
+    
+    // Scan palace areas for Kings
+    // Red Palace: 7-9, 3-5
+    for(let r=7; r<=9; r++) {
+        for(let c=3; c<=5; c++) {
+            const p = board[r][c];
+            if (p && p.type === 'k' && p.color === 'w') {
+                redKing = { row: r, col: c };
+                break;
+            }
+        }
+    }
+    // Black Palace: 0-2, 3-5
+    for(let r=0; r<=2; r++) {
+        for(let c=3; c<=5; c++) {
+            const p = board[r][c];
+            if (p && p.type === 'k' && p.color === 'b') {
+                blackKing = { row: r, col: c };
+                break;
+            }
+        }
+    }
+    
+    if (redKing && blackKing && redKing.col === blackKing.col) {
+        return countPiecesBetween(board, redKing, blackKing) === 0;
+    }
+    return false;
+}
+
 export function parseFen(fen: string): { board: BoardState, turn: PieceColor } {
   const [position, turn] = fen.split(' ');
   const rows = position.split('/');
