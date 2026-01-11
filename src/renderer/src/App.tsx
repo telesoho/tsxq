@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, SetStateAction } from 'react'
 import { Board } from './components/Board'
 import { ScreenCapture } from './components/ScreenCapture'
+import { ChessTimer } from './components/ChessTimer'
 import { parseFen, generateFen, START_FEN, BoardState, PieceColor, PieceType, fromUciMove, getChineseMoveNotation, validateFen } from './lib/xiangqi'
 import { recognizeBoardViaApi } from './lib/vision'
 import { captureSource } from './lib/capture'
@@ -85,12 +86,6 @@ function App(): JSX.Element {
       setActiveTimer(boardState.turn);
     }
   }, [boardState.turn, isTimerActive]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const handleTimerClick = (color: 'w' | 'b') => {
     // If game is over, do nothing
@@ -212,7 +207,10 @@ function App(): JSX.Element {
     setLastMove({ from, to });
     setMoveHistory(prev => [...prev, notation]);
     setFen(newFen);
-  }, [boardState, fen, lastMove]);
+    
+    // Ensure timer starts on any move
+    if (!isTimerActive) setIsTimerActive(true);
+  }, [boardState, fen, lastMove, isTimerActive]);
 
   const handleUndo = () => {
     if (history.length === 0) return;
@@ -526,55 +524,47 @@ function App(): JSX.Element {
             {/* Top Timer */}
             {isFlipped ? (
                 /* Red Timer when Flipped (Top) */
-                <div 
+                <ChessTimer 
+                    time={redTime}
+                    isRunning={isTimerActive && activeTimer === 'w'}
+                    label="红方 (Red)"
+                    color="red"
+                    isActive={activeTimer === 'w'}
                     onClick={() => handleTimerClick('w')}
-                    className={`p-4 rounded-lg shadow-lg cursor-pointer transition-all border-2 w-32 text-center
-                    ${activeTimer === 'w' ? 'bg-red-700 text-white border-amber-500 scale-110' : 'bg-red-900 text-red-300 border-transparent hover:border-red-500'}
-                    ${!isTimerActive ? 'animate-pulse ring-4 ring-amber-400/50' : ''}
-                    `}
-                >
-                    <div className="text-sm mb-1 font-bold">红方 (Red)</div>
-                    <div className="text-2xl font-mono">{formatTime(redTime)}</div>
-                </div>
+                />
             ) : (
                 /* Black Timer when Normal (Top) */
-                <div 
+                <ChessTimer 
+                    time={blackTime}
+                    isRunning={isTimerActive && activeTimer === 'b'}
+                    label="黑方 (Black)"
+                    color="black"
+                    isActive={activeTimer === 'b'}
                     onClick={() => handleTimerClick('b')}
-                    className={`p-4 rounded-lg shadow-lg cursor-pointer transition-all border-2 w-32 text-center
-                    ${activeTimer === 'b' ? 'bg-stone-800 text-white border-amber-500 scale-110' : 'bg-stone-700 text-stone-400 border-transparent hover:border-stone-500'}
-                    ${!isTimerActive ? 'animate-pulse ring-4 ring-amber-400/50' : ''}
-                    `}
-                >
-                    <div className="text-sm mb-1 font-bold">黑方 (Black)</div>
-                    <div className="text-2xl font-mono">{formatTime(blackTime)}</div>
-                </div>
+                />
             )}
 
             {/* Bottom Timer */}
             {isFlipped ? (
                 /* Black Timer when Flipped (Bottom) */
-                <div 
+                <ChessTimer 
+                    time={blackTime}
+                    isRunning={isTimerActive && activeTimer === 'b'}
+                    label="黑方 (Black)"
+                    color="black"
+                    isActive={activeTimer === 'b'}
                     onClick={() => handleTimerClick('b')}
-                    className={`p-4 rounded-lg shadow-lg cursor-pointer transition-all border-2 w-32 text-center
-                    ${activeTimer === 'b' ? 'bg-stone-800 text-white border-amber-500 scale-110' : 'bg-stone-700 text-stone-400 border-transparent hover:border-stone-500'}
-                    ${!isTimerActive ? 'animate-pulse ring-4 ring-amber-400/50' : ''}
-                    `}
-                >
-                    <div className="text-sm mb-1 font-bold">黑方 (Black)</div>
-                    <div className="text-2xl font-mono">{formatTime(blackTime)}</div>
-                </div>
+                />
             ) : (
                 /* Red Timer when Normal (Bottom) */
-                <div 
+                <ChessTimer 
+                    time={redTime}
+                    isRunning={isTimerActive && activeTimer === 'w'}
+                    label="红方 (Red)"
+                    color="red"
+                    isActive={activeTimer === 'w'}
                     onClick={() => handleTimerClick('w')}
-                    className={`p-4 rounded-lg shadow-lg cursor-pointer transition-all border-2 w-32 text-center
-                    ${activeTimer === 'w' ? 'bg-red-700 text-white border-amber-500 scale-110' : 'bg-red-900 text-red-300 border-transparent hover:border-red-500'}
-                    ${!isTimerActive ? 'animate-pulse ring-4 ring-amber-400/50' : ''}
-                    `}
-                >
-                    <div className="text-sm mb-1 font-bold">红方 (Red)</div>
-                    <div className="text-2xl font-mono">{formatTime(redTime)}</div>
-                </div>
+                />
             )}
         </div>
 
