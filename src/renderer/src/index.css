@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  @keyframes arrow-flash {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+  .animate-arrow-flash {
+    animation: arrow-flash 3s infinite ease-in-out;
+  }
+}
+
 body {
   @apply bg-gray-100 text-gray-900;
   margin: 0;

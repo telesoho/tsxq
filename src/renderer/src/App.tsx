@@ -539,6 +539,9 @@ function App(): JSX.Element {
       }
       // Clear info to force refresh
       setEngineInfo({});
+      
+      // Clear selection
+      setSelectedSquare(null);
   };
 
   return (

@@ -211,15 +211,20 @@ export const Board: React.FC<BoardProps> = ({ board, onSquareClick, selectedSqua
                     const colors = ['#dc2626', '#d97706', '#2563eb']; // Red, Amber, Blue
                     const color = colors[i % colors.length];
                     const marker = `url(#arrowhead-${(i % 3) + 1})`;
-                    const opacity = 0.8 - (i * 0.2);
+                    // Remove static opacity logic in favor of CSS animation
+                    // const opacity = 0.8 - (i * 0.2);
                     
                     return (
-                        <g key={`arrow-${i}`}>
-                            <line 
+                        <g 
+                            key={`arrow-${i}`} 
+                            className="animate-arrow-flash" 
+                            style={{ animationDelay: `${i * 1.0}s` }}
+                        >
+                            <line  
                                 x1={x1} y1={y1} x2={x2} y2={y2} 
                                 stroke={color} 
                                 strokeWidth={4 - i} 
-                                strokeOpacity={opacity}
+                                // strokeOpacity={opacity} // Handled by CSS animation
                                 markerEnd={marker}
                             />
                             {/* Score Label */}
