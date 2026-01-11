@@ -8,7 +8,7 @@
     50% { opacity: 1; }
   }
   .animate-arrow-flash {
-    animation: arrow-flash 3s infinite ease-in-out;
+    animation: arrow-flash 6s infinite ease-in-out;
   }
 }
 
