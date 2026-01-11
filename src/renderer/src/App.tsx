@@ -587,13 +587,6 @@ function App(): JSX.Element {
             )}
         </div>
 
-        {/* Simulation Indicator */}
-        {isSimulationMode && (
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 z-30 px-6 py-2 bg-amber-500 text-white font-bold rounded-b-lg shadow-lg animate-pulse">
-                推演模式 (Simulation Mode)
-            </div>
-        )}
-
         {/* Floating Undo Button - Top Left */}
         <button
             onClick={handleUndo}
@@ -618,13 +611,13 @@ function App(): JSX.Element {
                 onClick={isSimulationMode ? handleStopSimulation : handleStartSimulation}
                 className={`px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 transition-all ${
                     isSimulationMode 
-                    ? 'bg-amber-600 text-white hover:bg-amber-700 border border-amber-700' 
+                    ? 'bg-amber-600 text-white hover:bg-amber-700 border border-amber-700 animate-pulse' 
                     : 'bg-purple-600 text-white hover:bg-purple-700 border border-purple-700'
                 }`}
                 title={isSimulationMode ? "结束推演" : "开始推演"}
             >
                 <span>{isSimulationMode ? '⏹️' : '🎮'}</span> 
-                <span>{isSimulationMode ? '结束' : '推演'}</span>
+                <span>{isSimulationMode ? '结束推演' : '推演'}</span>
             </button>
 
             {/* Recognize Button */}
