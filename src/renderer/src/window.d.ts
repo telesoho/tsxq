@@ -8,6 +8,7 @@ declare global {
     electron: any
     api: {
       startEngine: () => Promise<boolean>
+      stopEngine: () => Promise<void>
       sendToEngine: (command: string) => Promise<void>
       onEngineInfo: (callback: (info: any) => void) => () => void
       onBestMove: (callback: (move: string) => void) => () => void

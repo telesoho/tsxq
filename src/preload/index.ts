@@ -4,6 +4,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 // Custom APIs for renderer
 const api = {
   startEngine: () => ipcRenderer.invoke('engine:start'),
+  stopEngine: () => ipcRenderer.invoke('engine:stop'),
   sendToEngine: (command: string) => ipcRenderer.invoke('engine:send', command),
   onEngineInfo: (callback: (info: any) => void) => {
     const subscription = (_: any, info: any) => callback(info);

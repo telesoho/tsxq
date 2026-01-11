@@ -85,6 +85,10 @@ function createWindow(): void {
         engine.on('info', (info) => mainWindow.webContents.send('engine:info', info));
         engine.on('bestmove', (move) => mainWindow.webContents.send('engine:bestmove', move));
         engine.on('error', (err) => mainWindow.webContents.send('engine:error', err.message));
+        engine.on('crashed', (code) => {
+          console.log(`Engine crashed with code ${code}. Restarting...`);
+          mainWindow.webContents.send('engine:status', 'restarting');
+        });
         
         engine.start();
         return true;
@@ -97,6 +101,13 @@ function createWindow(): void {
   ipcMain.handle('engine:send', (_, command: string) => {
     if (engine) {
       engine.send(command);
+    }
+  });
+
+  ipcMain.handle('engine:stop', () => {
+    if (engine) {
+      engine.quit();
+      engine = null;
     }
   });
 

@@ -4,6 +4,8 @@ import { EventEmitter } from 'events';
 export class UCIEngine extends EventEmitter {
   private process: ChildProcessWithoutNullStreams | null = null;
   private buffer: string = '';
+  private isIntentionalExit: boolean = false;
+  private restartTimer: NodeJS.Timeout | undefined;
 
   constructor(private enginePath: string) {
     super();
@@ -11,6 +13,7 @@ export class UCIEngine extends EventEmitter {
 
   public start(): void {
     if (this.process) return;
+    this.isIntentionalExit = false;
 
     try {
       this.process = spawn(this.enginePath);
@@ -32,7 +35,16 @@ export class UCIEngine extends EventEmitter {
       this.process.on('close', (code) => {
         console.log(`Engine exited with code ${code}`);
         this.process = null;
-        this.emit('quit');
+        
+        if (!this.isIntentionalExit) {
+          console.warn('Engine exited unexpectedly. Restarting in 3 seconds...');
+          this.emit('crashed', code);
+          this.restartTimer = setTimeout(() => {
+            this.start();
+          }, 3000);
+        } else {
+          this.emit('quit');
+        }
       });
 
       this.send('uci');
@@ -50,6 +62,12 @@ export class UCIEngine extends EventEmitter {
   }
 
   public quit(): void {
+    this.isIntentionalExit = true;
+    if (this.restartTimer) {
+      clearTimeout(this.restartTimer);
+      this.restartTimer = undefined;
+    }
+
     if (this.process) {
       this.send('quit');
       // Give it a moment to close gracefully, then kill if needed
