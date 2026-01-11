@@ -618,6 +618,29 @@ function App(): JSX.Element {
                 <span>{isSimulationMode ? '结束' : '推演'}</span>
             </button>
 
+            {/* Recognize Button */}
+            <button
+                onClick={() => setShowCapture(true)}
+                className="px-4 py-2 rounded-full font-bold shadow-lg bg-blue-600 text-white hover:bg-blue-700 border border-blue-700 flex items-center gap-2 transition-all"
+                title="识别棋盘"
+            >
+                <span>📷</span>
+                <span>识别</span>
+            </button>
+
+            {/* Re-Recognize Button */}
+            {lastRecognizedImage && (
+                <button
+                    onClick={handleReRecognize}
+                    disabled={isRecognizing}
+                    className="px-4 py-2 rounded-full font-bold shadow-lg bg-green-600 text-white hover:bg-green-700 border border-green-700 flex items-center gap-2 transition-all"
+                    title="重新识别"
+                >
+                    <span>🔄</span>
+                    <span>重识</span>
+                </button>
+            )}
+
             {/* Restart Button */}
             <button
                 onClick={() => {
@@ -762,24 +785,7 @@ function App(): JSX.Element {
            </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-            <button
-                onClick={() => setShowCapture(true)}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold shadow-sm flex items-center justify-center gap-2"
-            >
-                <span>📷</span> 识别棋盘
-            </button>
-            
-            {lastRecognizedImage && (
-                <button
-                    onClick={handleReRecognize}
-                    disabled={isRecognizing}
-                    className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold shadow-sm flex items-center justify-center gap-2"
-                >
-                    <span>🔄</span> 重新识别
-                </button>
-            )}
-        </div>
+
 
         <div className={`p-4 rounded ${engineStatus.includes('Failed') ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}>
           <h2 className="font-bold mb-2">Engine</h2>
