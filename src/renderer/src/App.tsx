@@ -536,10 +536,10 @@ function App(): JSX.Element {
   };
 
   return (
-    <div className="flex h-screen bg-stone-200 p-8 gap-8 relative overflow-hidden">
+    <div className="flex h-screen bg-stone-200 p-2 gap-2 relative overflow-hidden">
       <div className="flex-1 flex justify-center items-center relative w-full">
         {/* Timers - Centered on Left */}
-        <div className="absolute left-8 top-1/2 transform -translate-y-1/2 flex flex-col gap-32 z-20">
+        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-24 z-20">
             {/* Top Timer */}
             {isFlipped ? (
                 /* Red Timer when Flipped (Top) */
@@ -591,25 +591,25 @@ function App(): JSX.Element {
         <button
             onClick={handleUndo}
             disabled={history.length === 0}
-            className={`absolute top-0 left-0 z-30 px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 transition-all ${
+            className={`absolute top-2 left-2 z-30 px-3 py-1.5 rounded-full font-bold shadow-lg flex items-center gap-1.5 text-sm transition-all ${
                 history.length === 0 
                 ? 'bg-stone-300 text-stone-500 cursor-not-allowed opacity-50' 
                 : 'bg-white text-stone-700 hover:bg-amber-50 hover:text-amber-600 border border-stone-200'
             }`}
             title="悔棋 (Undo)"
         >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
             </svg>
             <span>悔棋</span>
         </button>
 
         {/* Top Right Buttons Group */}
-        <div className="absolute top-0 right-0 z-30 flex gap-2">
+        <div className="absolute top-2 right-2 z-30 flex gap-2">
             {/* Simulation Button */}
             <button
                 onClick={isSimulationMode ? handleStopSimulation : handleStartSimulation}
-                className={`px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 transition-all ${
+                className={`px-3 py-1.5 rounded-full font-bold shadow-lg flex items-center gap-1.5 text-sm transition-all ${
                     isSimulationMode 
                     ? 'bg-amber-600 text-white hover:bg-amber-700 border border-amber-700 animate-pulse' 
                     : 'bg-purple-600 text-white hover:bg-purple-700 border border-purple-700'
@@ -623,7 +623,7 @@ function App(): JSX.Element {
             {/* Recognize Button */}
             <button
                 onClick={() => setShowCapture(true)}
-                className="px-4 py-2 rounded-full font-bold shadow-lg bg-blue-600 text-white hover:bg-blue-700 border border-blue-700 flex items-center gap-2 transition-all"
+                className="px-3 py-1.5 rounded-full font-bold shadow-lg bg-blue-600 text-white hover:bg-blue-700 border border-blue-700 flex items-center gap-1.5 text-sm transition-all"
                 title="识别棋盘"
             >
                 <span>📷</span>
@@ -635,7 +635,7 @@ function App(): JSX.Element {
                 <button
                     onClick={handleReRecognize}
                     disabled={isRecognizing}
-                    className="px-4 py-2 rounded-full font-bold shadow-lg bg-green-600 text-white hover:bg-green-700 border border-green-700 flex items-center gap-2 transition-all"
+                    className="px-3 py-1.5 rounded-full font-bold shadow-lg bg-green-600 text-white hover:bg-green-700 border border-green-700 flex items-center gap-1.5 text-sm transition-all"
                     title="重新识别"
                 >
                     <span>🔄</span>
@@ -666,10 +666,10 @@ function App(): JSX.Element {
                     setActiveTimer(null);
                 }
                 }}
-                className="px-4 py-2 rounded-full font-bold shadow-lg bg-stone-600 text-white hover:bg-stone-700 border border-stone-700 flex items-center gap-2 transition-all"
+                className="px-3 py-1.5 rounded-full font-bold shadow-lg bg-stone-600 text-white hover:bg-stone-700 border border-stone-700 flex items-center gap-1.5 text-sm transition-all"
                 title="重新开始 (Restart)"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 <span>重开</span>
@@ -678,10 +678,10 @@ function App(): JSX.Element {
             {/* Flip Button */}
             <button
                 onClick={() => setIsFlipped(!isFlipped)}
-                className="px-4 py-2 rounded-full font-bold shadow-lg bg-white text-stone-700 hover:bg-stone-50 hover:text-stone-900 border border-stone-200 flex items-center gap-2 transition-all"
+                className="px-3 py-1.5 rounded-full font-bold shadow-lg bg-white text-stone-700 hover:bg-stone-50 hover:text-stone-900 border border-stone-200 flex items-center gap-1.5 text-sm transition-all"
                 title="翻转棋盘 (Flip Board)"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                 </svg>
                 <span>翻转</span>
@@ -712,7 +712,7 @@ function App(): JSX.Element {
       </div>
 
       <div className={`
-          absolute top-4 right-4 bottom-4 z-40
+          absolute top-2 right-2 bottom-2 z-40
           bg-white rounded-lg shadow-2xl flex flex-col gap-4 transition-all duration-300 ease-in-out border border-gray-200
           ${isPanelVisible ? 'w-80 p-4 translate-x-0 opacity-100' : 'w-0 p-0 translate-x-full opacity-0 overflow-hidden pointer-events-none'}
       `}>

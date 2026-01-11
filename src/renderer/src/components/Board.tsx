@@ -16,10 +16,10 @@ interface BoardProps {
   }>;
 }
 
-const CELL_SIZE = 60;
+const CELL_SIZE = 54;
 const BOARD_WIDTH = CELL_SIZE * 8;
 const BOARD_HEIGHT = CELL_SIZE * 9;
-const PADDING = 40;
+const PADDING = 30;
 
 interface SquareProps {
     r: number;

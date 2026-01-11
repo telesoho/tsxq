@@ -53,13 +53,13 @@ export const ChessTimer: React.FC<ChessTimerProps> = ({ time, isRunning, label, 
     <div 
         onClick={onClick}
         className={`
-            flex flex-col items-center justify-center p-4 border-2 rounded-lg 
-            transition-all duration-300 cursor-pointer w-32 select-none
+            flex flex-col items-center justify-center p-2 border-2 rounded-lg 
+            transition-all duration-300 cursor-pointer w-24 select-none
             ${bgClass} ${borderClass} ${textClass} ${activeScale} ${pulseClass}
         `}
     >
-      <div className="text-sm font-bold mb-1">{label}</div>
-      <div className="text-2xl font-mono font-bold">
+      <div className="text-xs font-bold mb-0.5">{label}</div>
+      <div className="text-xl font-mono font-bold">
         {formatTime(time)}
       </div>
     </div>
