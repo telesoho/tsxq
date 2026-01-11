@@ -112,6 +112,20 @@ function App(): JSX.Element {
     setActiveTimer(color);
   };
 
+  // Engine Start Service
+  const startEngineService = useCallback(() => {
+    setEngineStatus('Initializing...');
+    window.api.startEngine().then((success: any) => {
+      if (success) {
+        setEngineStatus('Ready');
+        window.api.sendToEngine('uci');
+        setTimeout(() => window.api.sendToEngine('setoption name MultiPV value 3'), 500);
+      } else {
+        setEngineStatus('Failed to start (Check resources/bin/pikafish.exe)');
+      }
+    });
+  }, []);
+
   // Initialize Engine
   useEffect(() => {
     const cleanupStatus = window.api.onEngineStatus((status: SetStateAction<string>) => setEngineStatus(status));
@@ -132,21 +146,13 @@ function App(): JSX.Element {
         });
     });
     
-    window.api.startEngine().then((success: any) => {
-      if (success) {
-        setEngineStatus('Ready');
-        window.api.sendToEngine('uci');
-        setTimeout(() => window.api.sendToEngine('setoption name MultiPV value 3'), 500);
-      } else {
-        setEngineStatus('Failed to start (Check resources/bin/pikafish.exe)');
-      }
-    });
+    startEngineService();
 
     return () => {
         cleanupStatus();
         cleanupInfo();
     };
-  }, []);
+  }, [startEngineService]);
 
   // Update internal state when FEN changes
   useEffect(() => {
@@ -789,8 +795,19 @@ function App(): JSX.Element {
 
 
 
-        <div className={`p-4 rounded ${engineStatus.includes('Failed') ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}>
-          <h2 className="font-bold mb-2">Engine</h2>
+        <div className={`p-4 rounded ${engineStatus.includes('Failed') || engineStatus.includes('Exited') ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}>
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="font-bold">Engine</h2>
+            {(engineStatus.includes('Failed') || engineStatus.includes('Exited') || engineStatus === 'Disconnected') && (
+                <button 
+                    onClick={startEngineService}
+                    className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors shadow-sm"
+                    title="重启引擎"
+                >
+                    重启引擎
+                </button>
+            )}
+          </div>
           <p className="text-sm">{engineStatus}</p>
           {isAiThinking && <p className="text-blue-600 font-bold animate-pulse">AI is thinking...</p>}
           {isRecognizing && <p className="text-purple-600 font-bold animate-pulse">Recognizing Board...</p>}

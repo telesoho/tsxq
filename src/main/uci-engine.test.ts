@@ -128,6 +128,35 @@ describe('UCIEngine (Integration)', () => {
     expect((engine as any).process).toBeNull();
   });
 
+  it('should allow manual restart after intentional quit', async () => {
+    // 1. Start engine
+    const readyPromise = new Promise<void>((resolve) => {
+        engine.once('ready', () => resolve());
+    });
+    engine.start();
+    await readyPromise;
+    
+    // 2. Quit intentionally
+    const quitPromise = new Promise<void>((resolve) => {
+        engine.once('quit', () => resolve());
+    });
+    engine.quit();
+    await quitPromise;
+    
+    expect((engine as any).process).toBeNull();
+
+    // 3. Restart manually (simulating the UI button click logic)
+    const restartPromise = new Promise<void>((resolve) => {
+        engine.once('ready', () => resolve());
+    });
+    engine.start();
+    await restartPromise;
+    
+    // 4. Verify process is running again
+    expect((engine as any).process).toBeDefined();
+    expect((engine as any).process.pid).toBeDefined();
+  });
+
   it('should handle checkmate (dead position) correctly', async () => {
     // 1. Start engine
     const readyPromise = new Promise<void>((resolve) => {
