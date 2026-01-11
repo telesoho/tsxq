@@ -14,23 +14,123 @@ export const START_FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBA
 export function validateFen(fen: string): { valid: boolean; error?: string } {
   try {
     const { board } = parseFen(fen);
-    let redKing = false;
-    let blackKing = false;
+    
+    // Counts
+    const counts = {
+      w: { k: 0, a: 0, b: 0, n: 0, r: 0, c: 0, p: 0 },
+      b: { k: 0, a: 0, b: 0, n: 0, r: 0, c: 0, p: 0 }
+    };
+
+    // Positions for Kings to check Flying General
+    let redKingPos: { r: number, c: number } | null = null;
+    let blackKingPos: { r: number, c: number } | null = null;
 
     for (let r = 0; r < 10; r++) {
       for (let c = 0; c < 9; c++) {
         const piece = board[r][c];
         if (piece) {
+          counts[piece.color][piece.type]++;
+
+          // Update King Positions
           if (piece.type === 'k') {
-            if (piece.color === 'w') redKing = true;
-            else blackKing = true;
+            if (piece.color === 'w') redKingPos = { r, c };
+            else blackKingPos = { r, c };
+          }
+
+          // 1. Position Checks
+          // Pawns
+          if (piece.type === 'p') {
+            if (piece.color === 'w') {
+              // Red Pawn: Moves UP (towards 0). Starts at 6.
+              // Cannot be behind starting line (7, 8, 9).
+              if (r > 6) return { valid: false, error: '红兵位置错误 (Red Pawn at invalid rank)' };
+              // Cannot move sideways before crossing river (River is between 4 and 5).
+              // If at row 5 or 6, must be at even column.
+              if (r >= 5 && c % 2 !== 0) return { valid: false, error: '红兵位置错误 (Red Pawn at invalid file before river)' };
+            } else {
+              // Black Pawn: Moves DOWN (towards 9). Starts at 3.
+              // Cannot be behind starting line (0, 1, 2).
+              if (r < 3) return { valid: false, error: '黑卒位置错误 (Black Pawn at invalid rank)' };
+              // Cannot move sideways before crossing river.
+              // If at row 3 or 4, must be at even column.
+              if (r <= 4 && c % 2 !== 0) return { valid: false, error: '黑卒位置错误 (Black Pawn at invalid file before river)' };
+            }
+          }
+
+          // Advisors (Palace)
+          if (piece.type === 'a') {
+             if (piece.color === 'w') {
+                // Red: 7-9, 3-5
+                if (r < 7 || r > 9 || c < 3 || c > 5) return { valid: false, error: '红仕位置错误 (Red Advisor outside palace)' };
+             } else {
+                // Black: 0-2, 3-5
+                if (r < 0 || r > 2 || c < 3 || c > 5) return { valid: false, error: '黑士位置错误 (Black Advisor outside palace)' };
+             }
+          }
+
+          // Bishops (Elephant) - Cannot cross river
+          if (piece.type === 'b') {
+             if (piece.color === 'w') {
+                // Red: 5-9
+                if (r < 5) return { valid: false, error: '红相位置错误 (Red Bishop crossed river)' };
+             } else {
+                // Black: 0-4
+                if (r > 4) return { valid: false, error: '黑象位置错误 (Black Bishop crossed river)' };
+             }
+          }
+          
+          // Kings (Palace)
+          if (piece.type === 'k') {
+             if (piece.color === 'w') {
+                if (r < 7 || r > 9 || c < 3 || c > 5) return { valid: false, error: '红帅位置错误 (Red King outside palace)' };
+             } else {
+                if (r < 0 || r > 2 || c < 3 || c > 5) return { valid: false, error: '黑将位置错误 (Black King outside palace)' };
+             }
           }
         }
       }
     }
 
-    if (!redKing) return { valid: false, error: '缺少红帅 (Red King missing)' };
-    if (!blackKing) return { valid: false, error: '缺少黑将 (Black King missing)' };
+    // 2. Count Checks
+    if (counts.w.k !== 1) return { valid: false, error: counts.w.k === 0 ? '缺少红帅 (Red King missing)' : '红帅多于1个 (Multiple Red Kings)' };
+    if (counts.b.k !== 1) return { valid: false, error: counts.b.k === 0 ? '缺少黑将 (Black King missing)' : '黑将多于1个 (Multiple Black Kings)' };
+    
+    if (counts.w.a > 2) return { valid: false, error: '红仕多于2个 (Too many Red Advisors)' };
+    if (counts.b.a > 2) return { valid: false, error: '黑士多于2个 (Too many Black Advisors)' };
+    
+    if (counts.w.b > 2) return { valid: false, error: '红相多于2个 (Too many Red Bishops)' };
+    if (counts.b.b > 2) return { valid: false, error: '黑象多于2个 (Too many Black Bishops)' };
+    
+    if (counts.w.n > 2) return { valid: false, error: '红马多于2个 (Too many Red Knights)' };
+    if (counts.b.n > 2) return { valid: false, error: '黑马多于2个 (Too many Black Knights)' };
+    
+    if (counts.w.r > 2) return { valid: false, error: '红车多于2个 (Too many Red Rooks)' };
+    if (counts.b.r > 2) return { valid: false, error: '黑车多于2个 (Too many Black Rooks)' };
+    
+    if (counts.w.c > 2) return { valid: false, error: '红炮多于2个 (Too many Red Cannons)' };
+    if (counts.b.c > 2) return { valid: false, error: '黑炮多于2个 (Too many Black Cannons)' };
+    
+    if (counts.w.p > 5) return { valid: false, error: '红兵多于5个 (Too many Red Pawns)' };
+    if (counts.b.p > 5) return { valid: false, error: '黑卒多于5个 (Too many Black Pawns)' };
+
+    // 3. Flying General Check
+    if (redKingPos && blackKingPos && redKingPos.c === blackKingPos.c) {
+      // Same column
+      let obstacles = 0;
+      const col = redKingPos.c;
+      const minR = Math.min(redKingPos.r, blackKingPos.r);
+      const maxR = Math.max(redKingPos.r, blackKingPos.r);
+      
+      for (let r = minR + 1; r < maxR; r++) {
+        if (board[r][col]) {
+          obstacles++;
+        }
+      }
+
+      if (obstacles === 0) {
+        return { valid: false, error: '将帅照面 (Flying General)' };
+      }
+    }
 
     return { valid: true };
   } catch (e) {

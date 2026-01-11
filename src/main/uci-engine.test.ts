@@ -172,5 +172,39 @@ describe('UCIEngine (Integration)', () => {
     expect(nextMove).not.toBe('(none)');
     expect(nextMove).toBeTruthy();
   });
+
+  it('should handle Flying General (illegal FEN) behavior', async () => {
+    // 1. Start engine
+    const readyPromise = new Promise<void>((resolve) => {
+        engine.on('ready', () => resolve());
+    });
+    engine.start();
+    await readyPromise;
+
+    // 2. Send Flying General FEN (Kings facing each other with no obstacles)
+    const illegalFen = '4k4/9/9/9/9/9/9/9/9/4K4 w - - 0 1';
+    engine.send(`position fen ${illegalFen}`);
+
+    // 3. Request analysis
+    const bestMovePromise = new Promise<string>((resolve) => {
+        engine.once('bestmove', (move) => resolve(move));
+    });
+    engine.send('go depth 1');
+
+    // 4. See what happens. Pikafish might return (none) or a move if it's lenient, 
+    // or maybe it won't reply bestmove at all?
+    // We'll use a timeout race.
+    const result = await Promise.race([
+        bestMovePromise,
+        new Promise<string>(r => setTimeout(() => r('timeout'), 2000))
+    ]);
+    
+    // Just logging for our information to answer the user
+    console.log('Engine response to Flying General:', result);
+    
+    // We don't necessarily assert specific behavior here as it depends on engine implementation,
+    // but knowing this helps answer the user.
+    // If it returns a move, it's weird. If it returns (none) or timeout, it confirms it's bad.
+  });
 });
 

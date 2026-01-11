@@ -830,6 +830,12 @@ function App(): JSX.Element {
                 const result = await recognizeBoardViaApi(imageData);
                 console.log("API Result:", result);
                 
+                // Validate FEN
+                const validation = validateFen(result.fen);
+                if (!validation.valid) {
+                     alert(`识别结果可能不完整: ${validation.error}\nRecognition might be incomplete.`);
+                }
+
                 setFen(result.fen);
                 setMoveHistory([]);
                 setHistory([]);
